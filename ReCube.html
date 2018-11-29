@@ -1,0 +1,108 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+<head>
+	<title>Re Cube</title>
+	<meta charset="utf-8">
+	
+	<script id="triangle_vs" type="x-shader/x-vertex">
+		attribute vec3 aVertexPosition;
+		attribute vec3 aVertexNormal;
+		attribute vec4 aVertexColor;
+		uniform  mat4 mvpMatrix;
+		uniform  mat4 invMatrix;
+		uniform  vec3 lightPosition;
+		uniform  vec3 eyeDirection;
+		uniform  vec4 ambientColor;
+		varying vec4 vColor;
+		
+		void main(){
+			vec3 lightDirection	= lightPosition - aVertexPosition;
+			vec3 invLight	= normalize( invMatrix * vec4( lightDirection, 0.0 ) ).xyz;
+			vec3 invEye		= normalize( invMatrix * vec4(eyeDirection, 0.0) ).xyz;
+			vec3 halfLE		= normalize( invLight + invEye );
+			float specular	= pow( clamp( dot(aVertexNormal, halfLE), 0.0, 1.0 ), 50.0 )*0.5;
+			float difuse	= clamp( dot( aVertexNormal, invLight) + specular, 0.2, 1.0 );
+			vec4 light		= aVertexColor * vec4(vec3(difuse), 1.0);
+			vColor			= light + ambientColor;
+			gl_Position		= mvpMatrix * vec4(aVertexPosition, 1.0);
+		}
+		
+	</script>
+	
+	<script id="triangle_fs" type="x-shader/x-fragment">
+		precision mediump float;
+		
+		varying vec4 vColor;
+		void main(){
+			gl_FragColor = vColor;
+		}
+	</script>
+	
+</head>
+
+<body>
+<div id="container">
+<script src="../../GL/glMatrix-min.js" type="text/javascript"></script>
+<script src="./utils_basis002A.js" type="text/javascript"></script>
+<script src="./ReCube.js" type="text/javascript"></script>
+<script>
+	window.addEventListener("DOMContentLoaded",function(){ ReCube(); }, false);
+</script>
+
+<section style="font-size:16px"><b>Re Cube</b>
+<hr size=5 color=maroon>
+<!-- 内容項目 -->
+<section>
+	<canvas id="canvas" style="margin-left:10px;"></canvas>
+	</div>
+	<div id="fps-counter">
+		FPS: <span id="fps">--</span>
+	</div>
+	<div>
+		<input id="H_Pos" type = "range" value="300" max="600" min="0"> H-Position
+		<input id="H_PosTxt" type="text" name="H_PosName" value="300">
+	</div>
+	<div>
+		<input id="RotXY" type = "range" value="0" max="628" min="0"> Rot XY
+		<input id="RotXYTxt" type="text" value="0"><br>
+		<input id="RotYZ" type = "range" value="0" max="628" min="0"> Rot YZ
+		<input id="RotYZTxt" type="text" value="0"><br>
+		<input id="RotYH" type = "range" value="0" max="628" min="0"> Rot YH
+		<input id="RotYHTxt" type="text" value="0">
+	</div>
+	<div>
+		<input id="RotZH" type = "range" value="0" max="628" min="0"> Rot ZH
+		<input id="RotZHTxt" type="text" value="0"><br>
+		<input id="RotXZ" type = "range" value="0" max="628" min="0"> Rot XZ
+		<input id="RotXZTxt" type="text" value="0"><br>
+		<input id="RotXH" type = "range" value="0" max="628" min="0"> Rot XH
+		<input id="RotXHTxt" type="text" value="0">
+	</div>
+	<div>
+		<input id="Dist" type = "range" value="350" max="380" min="-350"> Dist
+		<input id="DistTxt" type="text" value="350">
+	</div>
+	<form name="dispType">表示三角錐型
+		<p>
+			<input type="checkbox" name="dispPyramType" value="1" checked="checked">0
+			<input type="checkbox" name="dispPyramType" value="2" checked="checked">1
+			<input type="checkbox" name="dispPyramType" value="3" checked="checked">2
+			<input type="checkbox" name="dispPyramType" value="4" checked="checked">3
+		</p>
+	</form>
+	<br>
+	回転方向について：<br>
+	Rot XYはＸＹ平面上の回転を意味します。<br>
+	３次元空間においては、Ｚ軸を中心とした回転になります。他も同様です。<br>
+	４つめの方向・軸をＨ方向・Ｈ軸と呼称しています。<br>
+	<br>
+	about Rotate Direction:<br>
+	"Rot XY" means rotation on X-Y plane.<br>
+	In 3D space, it is Z-axis rotation.<br>
+	"H" means the 4th direction of 4D space.<br>
+	<p style="text-align:right">2017Feb02 <a href="http://www7b.biglobe.ne.jp/~fdw/">fDWalkers</a></p>
+</section>
+
+</div>
+</body>
+</html>
