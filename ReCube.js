@@ -8,6 +8,7 @@
 //	OnLoad
 //============================================================
 
+
 function ReCube(){
 	"use strict";
 	var cnvs = document.getElementById('canvas'),
