@@ -95,6 +95,36 @@ fDWL.R4D.TriangleBuffer.prototype = {
 		this.positionOffsetInFloats = pOffs;
 		this.colorOffsetInBytes = cOffs;
 	},
+
+	// 三角形を描画バッファに登録：テクスチャ付き
+	setTriangleTex: function( vtx0, vtx1, vtx2, nor, col, tex0, tex1, tex2  ){
+		"use strict";
+		const	pV = this.positionView,
+				cV = this.colorView,
+				vtx = [ vtx0, vtx1, vtx2 ];
+		let pOffs = this.positionOffsetInFloats,
+			cOffs = this.colorOffsetInBytes;
+		
+		for( let cnt = 0; cnt < 3; ++cnt ){
+			
+			pV[pOffs  ] = vtx[cnt][0];
+			pV[pOffs+1] = vtx[cnt][1];
+			pV[pOffs+2] = vtx[cnt][2];
+			pV[pOffs+3] = vtx[cnt][3];
+			pV[pOffs+4] = vtx[cnt][4];
+			pV[pOffs+5] = vtx[cnt][5];
+			cV[cOffs  ] = vtx[cnt][6];
+			cV[cOffs+1] = vtx[cnt][7];
+			cV[cOffs+2] = vtx[cnt][8];
+			cV[cOffs+3] = vtx[cnt][9];
+			
+			pOffs += this.vetexSizeInFloats;
+			cOffs += this.vertexSizeInByte;
+		}
+		this.numberOfItems += 3;
+		this.positionOffsetInFloats = pOffs;
+		this.colorOffsetInBytes = cOffs;
+	},
 	
 	draw: function(){
 		"use strict";
@@ -493,7 +523,7 @@ fDWL.calcAve = function( elemNum, itemNum, vertice, vertIdx ){
 //	Cube4:											// 立方体8個、インデックス形式
 //
 //==================================================================
-fDWL.R4D.Pylams4D = function( gl, prg, pos, rotate, scale, vertex, color, center, index, chrnIdx, centIdx, colorIdx, offs, rot ){
+fDWL.R4D.Pylams4D = function( gl, prg, pos, rotate, scale, vertex, color, center, index, texPos, texIdx, tex, chrnIdx, centIdx, colorIdx, offs, rot ){
 		"use strict";
 	let norms = [],
 		vert = [],
@@ -535,7 +565,7 @@ fDWL.R4D.Pylams4D = function( gl, prg, pos, rotate, scale, vertex, color, center
 			vertex[index[vId+2]*4], vertex[index[vId+2]*4+1], vertex[index[vId+2]*4+2], vertex[index[vId+2]*4+3],
 			vertex[index[vId+3]*4], vertex[index[vId+3]*4+1], vertex[index[vId+3]*4+2], vertex[index[vId+3]*4+3]
 		];
-		
+
 		vertIdx = centIdx[Math.floor(idx/4)]*4;
 		center0 = [ this.centers[vertIdx], this.centers[vertIdx+1], this.centers[vertIdx+2], this.centers[vertIdx+3] ];
 		
@@ -551,6 +581,9 @@ fDWL.R4D.Pylams4D = function( gl, prg, pos, rotate, scale, vertex, color, center
 	this.centIdx = centIdx;
 	this.triVertices = [];							// 生成三角形用バッファ
 	this.triBuf = {};
+	this.tex = tex;
+	this.texPos = texPos;
+	this.texIndex = texIdx;
 };
 
 
@@ -597,22 +630,22 @@ fDWL.R4D.Pylams4D.prototype = {
 				// 処理もなし
 				break;
 			case 1:	// 包含なし／１点交差（最標準パターン）
-				this.makeTriangle3Vtx( hPos, this.workVtx, cutType, norVec, clrVec );
+				this.makeTriangle3Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );
 				break;
 			case 2:	// 包含なし／２点交差（四角形パターン）
-				this.makeTriangleDuo4Vtx( hPos, this.workVtx, cutType, norVec, clrVec );
+				this.makeTriangleDuo4Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );
 				break;
 			case 3:	// １点包含／２点交差パターン
-				this.makeTriangle2Vtx( hPos, this.workVtx, cutType, norVec, clrVec );
+				this.makeTriangle2Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );
 				break;
 			case 4:	// ２点包含／１点交差
-				this.makeTriangle1Vtx( hPos, this.workVtx, cutType, norVec, clrVec );
+				this.makeTriangle1Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );
 				break;
 			case 5:	// ３点包含／交差なし
-				this.makeTriangle0Vtx( hPos, this.workVtx, cutType, norVec, clrVec );
+				this.makeTriangle0Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );
 				break;
 			case 6:	// ４点包含／交差なし
-				this.makeTriangleQuadra0Vtx( hPos, this.workVtx, cutType, norVec, clrVec );	// makeTriangle0Vtx * 4
+				this.makeTriangleQuadra0Vtx( hPos, this.workVtx, cutType, norVec, clrVec, this.texPos, this.texIndex );	// makeTriangle0Vtx * 4
 				break;
 			}
 		}
@@ -742,7 +775,7 @@ fDWL.R4D.Pylams4D.prototype = {
 		return [ cutType, iVtx0, iVtx1, iVtx2, iVtx3 ];
 	},
 	// ３頂点を算出
-	makeTriangle3Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangle3Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const	p0 = cutType[1],		// 4 is sizeof( vertex )
 				p1 = cutType[2],
@@ -771,10 +804,27 @@ fDWL.R4D.Pylams4D.prototype = {
 			),
 			nrm4,
 			lerpedCol
+			/*
+			fDWL.lerp3(
+				[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+				[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+				rate01
+			),
+			fDWL.lerp3(
+				[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+				[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+				rate02
+			),
+			fDWL.lerp3(
+				[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+				[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+				rate03
+			)
+			*/
 		);
 	},
 	// ４頂点を算出、２三角形を登録
-	makeTriangleDuo4Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangleDuo4Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const p0 = cutType[1],		// 4 is sizeof( vertex )
 			p1 = cutType[2],
@@ -827,10 +877,28 @@ fDWL.R4D.Pylams4D.prototype = {
 			),
 			nrm4,
 			lerpedCol
+			/*
+			,
+			fDWL.lerp3(
+				[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+				[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+				rate01
+			),
+			fDWL.lerp3(
+				[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+				[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+				rate02
+			),
+			fDWL.lerp3(
+				[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+				[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+				rate03
+			)
+			*/
 		);
 	},
 	// 頂点の内１つが３Ｄ空間に包含：２点を算出
-	makeTriangle2Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangle2Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const	p0 = cutType[1],		// 4 is sizeof( vertex )
 				p1 = cutType[2],
@@ -854,10 +922,24 @@ fDWL.R4D.Pylams4D.prototype = {
 			),
 			nrm4,
 			lerpedCol
+			/*
+			,
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+			fDWL.lerp3(
+				[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+				[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+				rate02
+			),
+			fDWL.lerp3(
+				[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+				[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+				rate03
+			)
+			*/
 		);
 	},
 	// 頂点の内２つが３Ｄ空間に包含：１点を算出
-	makeTriangle1Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangle1Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const p0 = cutType[1],		// 4 is sizeof( vertex )
 				p1 = cutType[2],
@@ -876,10 +958,20 @@ fDWL.R4D.Pylams4D.prototype = {
 			),
 			nrm4,
 			lerpedCol
+			/*
+			,
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+			[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+			fDWL.lerp3(
+				[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+				[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+				rate03
+			)
+			*/
 		);
 	},
 	// 頂点の内３つが３Ｄ空間に包含されている
-	makeTriangle0Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangle0Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const	p0 = cutType[1],		// 4 is sizeof( vertex )
 				p1 = cutType[2],
@@ -891,10 +983,16 @@ fDWL.R4D.Pylams4D.prototype = {
 			[ vtx[p2][0], vtx[p2][1], vtx[p2][2] ],
 			nrm4,
 			clrVec
+			/*
+			,
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+			[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+			[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ]
+			*/
 		);
 	},
 	// 頂点の内４つが３Ｄ空間に包含：４つの三角形を登録
-	makeTriangleQuadra0Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
+	makeTriangleQuadra0Vtx: function( hPos, vtx, cutType, nrm4, clrVec, texPos, texIndex ){
 		"use strict";
 		const	p0 = cutType[1],		// 4 is sizeof( vertex )
 				p1 = cutType[2],
@@ -913,6 +1011,12 @@ fDWL.R4D.Pylams4D.prototype = {
 			[ vtx[p2][0], vtx[p2][1], vtx[p2][2] ],
 			fDWL.getDirectVec( vtx[p0], vtx[p1], vtx[p2], vtx[p3] ),
 			lerpedCol
+			/*
+			,
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+			[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+			[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ]
+			*/
 		);
 		lerpedCol = [
 			clrVec[ 4], clrVec[ 5], clrVec[ 6], clrVec[ 7],
@@ -925,6 +1029,12 @@ fDWL.R4D.Pylams4D.prototype = {
 			[ vtx[p3][0], vtx[p3][1], vtx[p3][2] ],
 			fDWL.getDirectVec( vtx[p1], vtx[p2], vtx[p3], vtx[p0] ),
 			lerpedCol
+			/*
+			,
+			[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ],
+			[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+			[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ]
+			*/
 		);
 		lerpedCol = [
 			clrVec[ 8], clrVec[ 9], clrVec[10], clrVec[11],
@@ -937,6 +1047,12 @@ fDWL.R4D.Pylams4D.prototype = {
 			[ vtx[p0][0], vtx[p0][1], vtx[p0][2] ],
 			fDWL.getDirectVec( vtx[p2], vtx[p3], vtx[p0], vtx[p1] ),
 			lerpedCol
+			/*
+			,
+			[ texPos[texIndex[p2]][0], texPos[texIndex[p2]][1], texPos[texIndex[p2]][2] ],
+			[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ]
+			*/
 		);
 		lerpedCol = [
 			clrVec[ 8], clrVec[ 9], clrVec[10], clrVec[11],
@@ -949,11 +1065,42 @@ fDWL.R4D.Pylams4D.prototype = {
 			[ vtx[p1][0], vtx[p1][1], vtx[p1][2] ],
 			fDWL.getDirectVec( vtx[p3], vtx[p0], vtx[p1], vtx[p2] ),
 			lerpedCol
-		);
+			/*
+			,
+			[ texPos[texIndex[p3]][0], texPos[texIndex[p3]][1], texPos[texIndex[p3]][2] ],
+			[ texPos[texIndex[p0]][0], texPos[texIndex[p0]][1], texPos[texIndex[p0]][2] ],
+			[ texPos[texIndex[p1]][0], texPos[texIndex[p1]][1], texPos[texIndex[p1]][2] ]
+			*/
+			);
 	},
 	// 三角形を描画バッファに登録( Flat Shading )
 	setTriangleFlat: function( v0, v1, v2, nrm4, clrVec ){
 		"use strict";
+		// 面の法線を求める
+		let vec0 = [ v0[0]-v1[0], v0[1]-v1[1], v0[2]-v1[2] ],
+			vec1 = [ v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2] ],
+			nrm = fDWL.normalize3( fDWL.outProd( vec0, vec1 ) ),
+			vtx0 = [],
+			vtx1 = [],
+			vtx2 = [];
+		
+		// ４次法線との方向を確認、逆なら反転させる
+		let det = nrm[0]*nrm4[0] + nrm[1]*nrm4[1] + nrm[2]*nrm4[2];
+		if( det < 0 ){
+			nrm[0] = -nrm[0];
+			nrm[1] = -nrm[1];
+			nrm[2] = -nrm[2];
+		}
+		
+		vtx0 = [ v0[0], v0[1], v0[2], nrm[0],nrm[1],nrm[2], clrVec[0],clrVec[1],clrVec[2],clrVec[3] ];
+		vtx1 = [ v1[0], v1[1], v1[2], nrm[0],nrm[1],nrm[2], clrVec[0],clrVec[1],clrVec[2],clrVec[3] ];
+		vtx2 = [ v2[0], v2[1], v2[2], nrm[0],nrm[1],nrm[2], clrVec[0],clrVec[1],clrVec[2],clrVec[3] ];
+		
+		// 描画用三角バッファに詰め込む
+		this.triBuf.setTriangle( vtx0, vtx1, vtx2 );
+	},
+	// 三角形を描画バッファに登録( Texture )
+	setTriangleFlatTex: function( v0, v1, v2, nrm4, clrVec, texPos, texIndex ){
 		// 面の法線を求める
 		let vec0 = [ v0[0]-v1[0], v0[1]-v1[1], v0[2]-v1[2] ],
 			vec1 = [ v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2] ],
@@ -1693,4 +1840,16 @@ fDWL.getBrowserInfo = function( gl ){
 		version		= gl.getParameter( gl.VERSION ),
 		glslVersion = gl.getParameter( gl.SHADING_LANGUAGE_VERSION );
 	return [ renderer, vendor, version, glslVersion ];
+};
+
+
+//------------------------------------------------------------------
+// 乱数発生器
+//------------------------------------------------------------------
+fDWL.xorShift = function( seed ){
+	"use strict";
+	let rand = seed ^ (seed << 5);
+	rand ^= (rand>>7);
+	seed = rand ^ (rand<<11);
+	return seed;
 };

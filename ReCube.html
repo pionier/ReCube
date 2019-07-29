@@ -38,6 +38,30 @@
 		}
 	</script>
 	
+	<script id="tex_vs" type="x-shader/x-vertex">#version 300 es
+		in vec3 s3_position;
+		in vec3 s3_texcoord;
+		uniform mat4 s3_matrix;
+		out vec3 v3_texCoord;
+	
+	  void main() {
+		gl_Position = s3_matrix * vec4(s3_position, 1.0);
+		v3_texCoord = s3_texcoord;
+		}
+		</script>
+	
+		<script id="tex_fs" type="x-shader/x-fragment">#version 300 es
+			precision mediump float;
+			precision highp sampler3D;
+	
+		in vec3 v3_texCoord;
+		uniform sampler3D s3_texture;
+		out vec4 outColor;
+		void main() {
+			outColor = texture(s3_texture, v3_texCoord);
+		}
+		</script>
+	
 </head>
 
 <body>

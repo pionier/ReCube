@@ -199,6 +199,79 @@ function ReCube(){
 	};
 	TriBuffer = new fDWL.R4D.TriangleBuffer( gl, TRI_BUFFER_SIZE );
 	
+	// キューブ for 3d
+	const colorSize = 4;
+	const texSize = 64;
+	const maxTexSize = texSize*texSize*colorSize;
+	let tex3D = new Uint8Array(texSize*maxTexSize);
+	(function(){
+		let texData = new Uint8Array(maxTexSize);
+		let texData2 = new Uint8Array(maxTexSize);
+		for( let idx = 0; idx < maxTexSize; idx += colorSize*8 ){
+			let redVal = 255;
+			let blueVal = 127;
+			if(( ( 4*texSize*colorSize) <= idx )&&( idx < ( 8*texSize*colorSize)) ||
+			( (12*texSize*colorSize) <= idx )&&( idx < (16*texSize*colorSize)) ||
+			( (20*texSize*colorSize) <= idx )&&( idx < (24*texSize*colorSize)) ||
+			( (28*texSize*colorSize) <= idx )&&( idx < (32*texSize*colorSize)) ||
+			( (36*texSize*colorSize) <= idx )&&( idx < (40*texSize*colorSize)) ||
+			( (44*texSize*colorSize) <= idx )&&( idx < (48*texSize*colorSize)) ||
+			( (52*texSize*colorSize) <= idx )&&( idx < (56*texSize*colorSize)) ||
+			( (60*texSize*colorSize) <= idx )&&( idx < (64*texSize*colorSize))
+			){
+				redVal = 127;
+				blueVal = 255;
+			}
+			for( let subIdx = 0; subIdx < 4; subIdx++ ){
+				let offs = idx+(subIdx*4);
+				texData[offs  ] = redVal;
+				texData[offs+1] = 127;
+				texData[offs+2] = blueVal;
+				texData[offs+3] = 255;
+				texData2[offs]  = blueVal;
+				texData2[offs+1] = 127;
+				texData2[offs+2] = redVal;
+				texData2[offs+3] = 255;
+			}
+			for( let subIdx = 0; subIdx < 4; subIdx++ ){
+				let offs = idx+16+(subIdx*4);
+				texData[offs  ] = blueVal;
+				texData[offs+1] = 127;
+				texData[offs+2] = redVal;
+				texData[offs+3] = 255;
+				texData2[offs]  = redVal;
+				texData2[offs+1] = 127;
+				texData2[offs+2] = blueVal;
+				texData2[offs+3] = 255;
+			}
+		}
+
+		let depthCnt = 0;
+		for( let idx = 0; idx < texSize; ++idx ){
+			let offs = idx * maxTexSize;
+			if(depthCnt >= colorSize*2){
+				depthCnt = 0;
+			}
+			for( let subIdx = 0; subIdx < maxTexSize; ++subIdx ){
+				if(depthCnt < 4){
+					tex3D[offs+subIdx] = texData[subIdx];
+				}else{
+					tex3D[offs+subIdx] = texData2[subIdx];
+				}
+			}
+			depthCnt++;
+		}	
+	}());
+/*
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_3D, tex3DObj);
+	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize,texSize,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
+	gl.generateMipmap(gl.TEXTURE_3D);
+	cube3.tex = tex3DObj;
+	cube3.texType = gl.TEXTURE_3D;
+	gl.bindTexture(gl.TEXTURE_3D, null);
+*/
+
 	// 
 	let ReCube = function( gl, pos, rotate, shader ){
 		"use strict";
@@ -225,24 +298,43 @@ function ReCube(){
 			[ 192, 192, 192, 255 ],
 			// center
 			[ 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
-			  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 ],
+				0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 ],
 			[	// index of Pylamids
 				
-				 0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
-				 8, 9,10,13,  9,10,11,14,  12,13,14, 9,  13,14,15,10,   9,10,13,14,		// あっち(h=-1)
+				0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
+				8, 9,10,13,  9,10,11,14,  12,13,14, 9,  13,14,15,10,   9,10,13,14,		// あっち(h=-1)
 				/**/
-				 9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,   1,11, 6,12,		// 右(X=+1)
-				 0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,   5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
+				9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,   1,11, 6,12,		// 右(X=+1)
+				0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,   5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
 				/**/
-				 0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
-				 2,10,11,15,  2, 3,11, 6,  15,14, 6,11,  15, 6, 7, 2,   2,11, 6,15,		// 下(Y=-1)
+				0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
+				2,10,11,15,  2, 3,11, 6,  15,14, 6,11,  15, 6, 7, 2,   2,11, 6,15,		// 下(Y=-1)
 				/**/
-				 0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
+				0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
 				13,12,15, 5, 12,15,14, 6,   5, 4, 6,12,   5, 6, 7,15,  12,15, 5, 6		// 奥(Z=-1)
 				/**/
 			],
+			[	// texPos
+				0.0, 1.0, 1.0,  1.0, 1.0, 1.0,  0.0, 0.0, 1.0,  1.0, 0.0, 1.0,
+				1.0, 1.0, 0.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0,  0.0, 0.0, 0.0
+			],
+			[	// texIdx corespodent with index of Pyramids
+				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+				/**/
+				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
+				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
+				/**/
+				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+				2,0,1,5,  2,3,1,6,  5,4,6,1,  5,6,7,2,  2,1,6,5,
+				/**/
+				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6
+			],
+			// Texture Object
+			tex3D,
 			[	// chrnIdx: 各四面体ごとに重心位置を指定
-				0,0,0,0,0, 
+				0,0,0,0,0
 			],
 			[	// centIdx
 				0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,
