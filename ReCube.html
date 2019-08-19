@@ -44,23 +44,24 @@
 		uniform mat4 s3_matrix;
 		out vec3 v3_texCoord;
 	
-	  void main() {
-		gl_Position = s3_matrix * vec4(s3_position, 1.0);
-		v3_texCoord = s3_texcoord;
+	  	void main() {
+			gl_Position = s3_matrix * vec4(s3_position, 1.0);
+			v3_texCoord = s3_texcoord;
 		}
-		</script>
+	</script>
 	
-		<script id="tex_fs" type="x-shader/x-fragment">#version 300 es
-			precision mediump float;
-			precision highp sampler3D;
+	<script id="tex_fs" type="x-shader/x-fragment">#version 300 es
+		precision mediump float;
+		precision highp sampler3D;
 	
 		in vec3 v3_texCoord;
 		uniform sampler3D s3_texture;
 		out vec4 outColor;
 		void main() {
-			outColor = texture(s3_texture, v3_texCoord);
+			// outColor = texture(s3_texture, v3_texCoord);
+			outColor = vec4(1.0, 0.5, 0.8, 1.0);
 		}
-		</script>
+	</script>
 	
 </head>
 
@@ -75,6 +76,7 @@
 
 <section style="font-size:16px"><b>Re Cube</b>
 <hr size=5 color=maroon>
+
 <!-- 内容項目 -->
 <section>
 	<canvas id="canvas" style="margin-left:10px;"></canvas>
