@@ -17,6 +17,7 @@ function ReCube(){
 		views = {},
 		light00 = {},
 		triangleShader = {},
+		texShader = {},
 		TriBuffer = {},
 		TRI_BUFFER_SIZE = 4096,
 		WalkerBody_SCALE = 1,
@@ -48,7 +49,7 @@ function ReCube(){
 			alert("No GL context.");
 			return;
 		}
-		gl = cnvs.getContext('webgl') || cnvs.getContext('experimental-webgl');
+		gl = cnvs.getContext('webgl2');
 		if( !gl ){
 			alert("Fail to create GL.\r\nPlease use Chrome or FireFox.");
 			return;
@@ -164,9 +165,10 @@ function ReCube(){
 	triangleShader.attrLoc = [
 		gl.getAttribLocation( triangleShader.prg, 'aVertexPosition' ),
 		gl.getAttribLocation( triangleShader.prg, 'aVertexNormal' ),
-		gl.getAttribLocation( triangleShader.prg, 'aVertexColor' )
+		gl.getAttribLocation( triangleShader.prg, 'aVertexColor' ),
+		gl.getAttribLocation( triangleShader.prg, 'texCoord' )
 	];
-	triangleShader.attrStride = [ 3, 3, 4 ];
+	triangleShader.attrStride = [ 3, 3, 4, 3 ];
 	triangleShader.uniLoc = [
 		gl.getUniformLocation( triangleShader.prg, 'mvpMatrix' ),
 		gl.getUniformLocation( triangleShader.prg, 'invMatrix' ),
@@ -177,6 +179,7 @@ function ReCube(){
 	gl.enableVertexAttribArray( triangleShader.attrLoc[0] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[1] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[2] );
+	gl.enableVertexAttribArray( triangleShader.attrLoc[3] );
 	
 	triangleShader.setUniLoc = function( mvpMtx, invMtx, lgtPos, viewDir, color ){
 		"use strict";
@@ -197,6 +200,20 @@ function ReCube(){
 		gl.uniform3fv( uniLoc[3], param[4] );
 		gl.uniform4fv( uniLoc[4], param[5] );
 	};
+/*
+	// Tex用シェーダの生成
+	texShader.prg = createShaderProgram( gl, 'tex_vs', 'tex_fs' );
+	texShader.attrLoc = [
+		gl.getAttribLocation( texShader.prg, 's3_position' ),
+		gl.getAttribLocation( texShader.prg, 's3_texcoord' ),
+	];
+	texShader.atrStride = [ 3, 3 ];
+	texShader.uniLoc = [
+		gl.getUniformLocation(texShader.prg, 's3_matrix'),
+		gl.getUniformLocation(texShader.prg, 's3_texture')
+	];
+/**/
+	// ポリゴンバッファ
 	TriBuffer = new fDWL.R4D.TriangleBuffer( gl, TRI_BUFFER_SIZE );
 	
 	// キューブ for 3d
@@ -209,6 +226,7 @@ function ReCube(){
 		let texData2 = new Uint8Array(maxTexSize);
 		for( let idx = 0; idx < maxTexSize; idx += colorSize*8 ){
 			let redVal = 255;
+			let greenVal = 127;
 			let blueVal = 127;
 			if(( ( 4*texSize*colorSize) <= idx )&&( idx < ( 8*texSize*colorSize)) ||
 			( (12*texSize*colorSize) <= idx )&&( idx < (16*texSize*colorSize)) ||
@@ -221,6 +239,11 @@ function ReCube(){
 			){
 				redVal = 127;
 				blueVal = 255;
+			}
+			if( idx > maxTexSize/2){
+				greenVal = 255;
+			}else{
+				greenVal = 127;
 			}
 			for( let subIdx = 0; subIdx < 4; subIdx++ ){
 				let offs = idx+(subIdx*4);
@@ -262,24 +285,24 @@ function ReCube(){
 			depthCnt++;
 		}	
 	}());
-/*
+/**/
+	let tex3DObj = gl.createTexture();
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_3D, tex3DObj);
 	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize,texSize,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
 	gl.generateMipmap(gl.TEXTURE_3D);
-	cube3.tex = tex3DObj;
-	cube3.texType = gl.TEXTURE_3D;
-	gl.bindTexture(gl.TEXTURE_3D, null);
-*/
+/**/
 
 	// 
-	let ReCube = function( gl, pos, rotate, shader ){
+	let ReCube = function( gl, pos, rotate, shader, texObj ){
 		"use strict";
 		this.pos = pos;
 		this.rot = rotate;
 		this.scale = [ 1,1,1,1 ];
 		this.shader = shader;
 		this.localMtx = new fDWL.R4D.Matrix4();
+		this.tex = texObj;
+		this.texType = gl.TEXTURE_3D;
 		
 		// 胴体部分
 		this.Body = new fDWL.R4D.Pylams4D(
@@ -300,17 +323,16 @@ function ReCube(){
 			[ 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
 				0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 ],
 			[	// index of Pylamids
-				
-				0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
+/*				0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
 				8, 9,10,13,  9,10,11,14,  12,13,14, 9,  13,14,15,10,   9,10,13,14,		// あっち(h=-1)
 				/**/
-				9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,   1,11, 6,12,		// 右(X=+1)
-				0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,   5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
+			/*	9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,*/   1,11, 6,12,		// 右(X=+1)
+/*				0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,   5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
 				/**/
-				0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
+/*				0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
 				2,10,11,15,  2, 3,11, 6,  15,14, 6,11,  15, 6, 7, 2,   2,11, 6,15,		// 下(Y=-1)
 				/**/
-				0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
+/*				0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
 				13,12,15, 5, 12,15,14, 6,   5, 4, 6,12,   5, 6, 7,15,  12,15, 5, 6		// 奥(Z=-1)
 				/**/
 			],
@@ -319,20 +341,21 @@ function ReCube(){
 				1.0, 1.0, 0.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0,  0.0, 0.0, 0.0
 			],
 			[	// texIdx corespodent with index of Pyramids
-				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+/*				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
 				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
 				/**/
-				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
-				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
+			/*	1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,*/  0,3,7,4,
+/*				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
 				/**/
-				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+/*				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
 				2,0,1,5,  2,3,1,6,  5,4,6,1,  5,6,7,2,  2,1,6,5,
 				/**/
-				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+/*				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
 				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6
+				/**/
 			],
 			// Texture Object
-			tex3D,
+			texObj,
 			[	// chrnIdx: 各四面体ごとに重心位置を指定
 				0,0,0,0,0
 			],
@@ -365,6 +388,7 @@ function ReCube(){
 		initParts:	function( primBuffer ){
 			// シェーディングルーチン選択
 			this.Body.setTriangle = this.Body.setTriangleFlat;
+			this.Body.setTriangleTex = this.Body.setTriangleFlatTex;
 			this.Body.getNormal = this.Body.getNormalPlane;
 			this.Body.getColor = this.Body.getColorPlane;
 			// 初期化変換
@@ -465,15 +489,15 @@ function ReCube(){
 			this.Body.walk( fDWL.add4D( this.pos, this.BodyPos ), this.rot );
 		},
 		
-		draw:	function( isRedraw, hPos, viewProjMtx, shaderParam ){
+		draw:	function( isTex, isRedraw, hPos, viewProjMtx, shaderParam ){
 			if( isRedraw ){
 				this.Body.transform();
-				this.Body.dividePylams( hPos );
+				this.Body.dividePylams( hPos, isTex );
 			}
 		}
 	}
 	
-	let Cube = new ReCube( gl, [ 0,1.2,0,Phoenix_OffsH ], [ 0,0,0,0,0,0 ], triangleShader );
+	let Cube = new ReCube( gl, [ 0,1.2,0,Phoenix_OffsH ], [ 0,0,0,0,0,0 ], triangleShader, tex3DObj );
 	Cube.initParts( TriBuffer );
 	
 	Cube.setResetParam({
@@ -579,6 +603,7 @@ function ReCube(){
 		"use strict";
 		var	texAndRate = [],
 			hPos = 0,
+			isTex = true,
 			eyeRad = 0,
 			currentTime = 0,
 			fldPos = [],
@@ -744,7 +769,7 @@ function ReCube(){
 		// ビューポート調整
 		gl.viewport( 0.0, 0.0, cnvs.width, cnvs.height );
 		
-		gl.enable(gl.CULL_FACE);
+//		gl.enable(gl.CULL_FACE);
 		
 /**/
 		// 地面
@@ -868,17 +893,27 @@ function ReCube(){
 			// 八胞体切断体の作成
 			TriBuffer.initialize( triangleShader );
 		}
-		Cube.draw( isRedraw, hPos, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
+		Cube.draw( isTex, isRedraw, hPos, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
 		
 		// 三角バッファの描画
 		gl.disable(gl.CULL_FACE);
-		TriBuffer.useProgram( triangleShader );
+		if(isTex){
+			TriBuffer.useProgram( triangleShader );
+		}else{
+			TriBuffer.useProgram( triangleShader );
+		}
 		mat4.identity( modelMatrix );
 		mat4.inverse( modelMatrix, invMatrix);
 		mat4.multiply( vepMatrix, modelMatrix, mvpMatrix );
-		triangleShader.setUniLoc(
-			mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
-		);
+		if(isTex){
+			triangleShader.setUniLoc(
+				mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
+			);
+		}else{
+			triangleShader.setUniLoc(
+				mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
+			);
+		}
 		TriBuffer.draw();
 		
 		// コンテキストの再描画
