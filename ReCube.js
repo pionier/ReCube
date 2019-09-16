@@ -200,18 +200,49 @@ function ReCube(){
 		gl.uniform3fv( uniLoc[3], param[4] );
 		gl.uniform4fv( uniLoc[4], param[5] );
 	};
-/*
+/**/
 	// Tex用シェーダの生成
 	texShader.prg = createShaderProgram( gl, 'tex_vs', 'tex_fs' );
 	texShader.attrLoc = [
-		gl.getAttribLocation( texShader.prg, 's3_position' ),
-		gl.getAttribLocation( texShader.prg, 's3_texcoord' ),
+		gl.getAttribLocation( texShader.prg, 'aVertexPosition' ),
+		gl.getAttribLocation( texShader.prg, 'aVertexNormal' ),
+		gl.getAttribLocation( texShader.prg, 'aVertexColor' ),
+		gl.getAttribLocation( texShader.prg, 'texCoord' )
 	];
-	texShader.atrStride = [ 3, 3 ];
+	texShader.attrStride = [ 3, 3, 4, 3 ];
+	gl.enableVertexAttribArray( texShader.attrLoc[0] );
+	gl.enableVertexAttribArray( texShader.attrLoc[1] );
+	gl.enableVertexAttribArray( texShader.attrLoc[2] );
+	gl.enableVertexAttribArray( texShader.attrLoc[3] );
 	texShader.uniLoc = [
-		gl.getUniformLocation(texShader.prg, 's3_matrix'),
-		gl.getUniformLocation(texShader.prg, 's3_texture')
+		gl.getUniformLocation( texShader.prg, 'mvpMatrix' ),
+		gl.getUniformLocation( texShader.prg, 'invMatrix' ),
+		gl.getUniformLocation( texShader.prg, 'lightPosition' ),
+		gl.getUniformLocation( texShader.prg, 'eyeDirection' ),
+		gl.getUniformLocation( texShader.prg, 'ambientColor' ),
+		gl.getUniformLocation( texShader.prg, 's3_texture' )
 	];
+	texShader.setUniLoc = function( mvpMtx, invMtx, lgtPos, viewDir, color ){
+		"use strict";
+		var uniLoc = this.uniLoc;
+		gl.uniformMatrix4fv( uniLoc[0], false, mvpMtx );
+		gl.uniformMatrix4fv( uniLoc[1], false, invMtx );
+		gl.uniform3fv( uniLoc[2], light00.position );
+		gl.uniform3fv( uniLoc[3], views.eyePosition );
+		gl.uniform4fv( uniLoc[4], light00.ambient );
+		gl.uniform1i( uniLoc[5], 0 );
+	};
+	texShader.setProgram = function( param ){
+		"use strict";
+		var uniLoc = this.uniLoc;
+		gl.useProgram( this.prg );
+		gl.uniformMatrix4fv( uniLoc[0], false, param[1] );
+		gl.uniformMatrix4fv( uniLoc[1], false, param[2] );
+		gl.uniform3fv( uniLoc[2], param[3] );
+		gl.uniform3fv( uniLoc[3], param[4] );
+		gl.uniform4fv( uniLoc[4], param[5] );
+		gl.uniform1i( uniLoc[5], param[6] );
+	};
 /**/
 	// ポリゴンバッファ
 	TriBuffer = new fDWL.R4D.TriangleBuffer( gl, TRI_BUFFER_SIZE );
@@ -303,7 +334,9 @@ function ReCube(){
 		this.localMtx = new fDWL.R4D.Matrix4();
 		this.tex = texObj;
 		this.texType = gl.TEXTURE_3D;
-		
+		const texSizeB = 0.05;
+		const texSizeE = 0.95;
+
 		// 胴体部分
 		this.Body = new fDWL.R4D.Pylams4D(
 			gl,
@@ -323,36 +356,40 @@ function ReCube(){
 			[ 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
 				0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 ],
 			[	// index of Pylamids
-/*				0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
+/**/
+				0, 1, 2, 5,  1, 2, 3, 6,   4, 5, 6, 1,   5, 6, 7, 2,   1, 2, 5, 6,		// こっち(h=+1)
 				8, 9,10,13,  9,10,11,14,  12,13,14, 9,  13,14,15,10,   9,10,13,14,		// あっち(h=-1)
-				/**/
-			/*	9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,*/   1,11, 6,12,		// 右(X=+1)
-/*				0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,   5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
-				/**/
-/*				0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
+/**/
+				9, 1,11,12,  1,11, 3, 6,   4,12, 6, 1,  11, 6,12,14,   1,11, 6,12,		// 右(X=+1)
+				0, 8, 2, 5,  8, 2,10,15,   5,13,15, 8,  5, 7,15, 2,   2, 8, 5,15,		// 左(X=-1)
+/**/
+				0, 1, 8, 5,  1, 8, 9,12,   5, 4,12, 1,   5,12,13, 8,   1, 8, 5,12,		// 上(Y=+1)
 				2,10,11,15,  2, 3,11, 6,  15,14, 6,11,  15, 6, 7, 2,   2,11, 6,15,		// 下(Y=-1)
-				/**/
-/*				0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
+/**/
+				0, 1, 2, 8,  1, 2, 3,11,   8, 9,11, 1,   8,11,10, 2,   1, 2, 8,11,		// 手前(Z=+1)
 				13,12,15, 5, 12,15,14, 6,   5, 4, 6,12,   5, 6, 7,15,  12,15, 5, 6		// 奥(Z=-1)
-				/**/
+/**/
 			],
 			[	// texPos
-				0.0, 1.0, 1.0,  1.0, 1.0, 1.0,  0.0, 0.0, 1.0,  1.0, 0.0, 1.0,
-				1.0, 1.0, 0.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0,  0.0, 0.0, 0.0
+//				0.0, 1.0, 1.0,  1.0, 1.0, 1.0,  0.0, 0.0, 1.0,  1.0, 0.0, 1.0,
+//				1.0, 1.0, 0.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0,  0.0, 0.0, 0.0
+				texSizeB, texSizeE, texSizeE,  texSizeE, texSizeE, texSizeE,  texSizeB, texSizeB, texSizeE,  texSizeE, texSizeB, texSizeE,
+				texSizeE, texSizeE, texSizeB,  texSizeB, texSizeE, texSizeB,  texSizeE, texSizeB, texSizeB,  texSizeB, texSizeB, texSizeB
 			],
 			[	// texIdx corespodent with index of Pyramids
-/*				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+/**/
 				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
-				/**/
-			/*	1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,*/  0,3,7,4,
-/*				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
-				/**/
-/*				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+/**/
+				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
+				1,0,3,4,  0,3,2,7,  4,6,7,3,  4,5,7,0,  3,0,4,7,
+/**/
+				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
 				2,0,1,5,  2,3,1,6,  5,4,6,1,  5,6,7,2,  2,1,6,5,
-				/**/
-/*				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
+/**/
+				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
 				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6
-				/**/
+/**/
 			],
 			// Texture Object
 			texObj,
@@ -497,7 +534,7 @@ function ReCube(){
 		}
 	}
 	
-	let Cube = new ReCube( gl, [ 0,1.2,0,Phoenix_OffsH ], [ 0,0,0,0,0,0 ], triangleShader, tex3DObj );
+	let Cube = new ReCube( gl, [ 0,1.2,0,Phoenix_OffsH ], [ 0,0,0,0,0,0 ], texShader, tex3DObj );
 	Cube.initParts( TriBuffer );
 	
 	Cube.setResetParam({
@@ -526,10 +563,7 @@ function ReCube(){
 	(function(){
 		"use strict";
 		var data = [],
-			dataType = [ gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN, gl.TRIANGLE_FAN ],
-			idx = 0,
-			id2 = 0,
-			offsY = 0;
+			dataType = [ gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN, gl.TRIANGLE_FAN ];
 		data[0] = fDWL.cylinder( 8, 0.2, 0.5, [ 1.0, 1.0, 1.0, 1.0],  [ 0, 0, 0 ], [ 0, 0, Math.PI/2 ] );
 		data[1] = fDWL.corn( 8, 0.2, 0.5, [ 1.0, 1.0, 1.0, 1.0], 1.0, [ 0,  0.1, 0 ], [ 0, 0, Math.PI/2 ] );
 		data[2] = fDWL.corn( 8, 0.2, 0.5, [ 1.0, 1.0, 1.0, 1.0], 1.0, [ 0,  0.1, 0 ], [ 0, 0, Math.PI*3/2 ] );
@@ -727,7 +761,7 @@ function ReCube(){
 		}
 		
 		// H軸位置設定
-		hPos = cntrls.eHPos.value*(0.01);
+		hPos = cntrls.eHPos.value*(0.01)+0.01;
 		
 		// 真４Ｄオブジェクトの更新：非移動時のみ
 		if( ( cntrls.RotXY.old !== cntrls.RotXY.value )||
@@ -891,14 +925,14 @@ function ReCube(){
 		Cube.walk( 0.01 );	// APIは仮
 		if( isRedraw ){
 			// 八胞体切断体の作成
-			TriBuffer.initialize( triangleShader );
+			TriBuffer.initialize( texShader );
 		}
 		Cube.draw( isTex, isRedraw, hPos, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
 		
 		// 三角バッファの描画
 		gl.disable(gl.CULL_FACE);
 		if(isTex){
-			TriBuffer.useProgram( triangleShader );
+			TriBuffer.useProgram( texShader );
 		}else{
 			TriBuffer.useProgram( triangleShader );
 		}
@@ -906,7 +940,7 @@ function ReCube(){
 		mat4.inverse( modelMatrix, invMatrix);
 		mat4.multiply( vepMatrix, modelMatrix, mvpMatrix );
 		if(isTex){
-			triangleShader.setUniLoc(
+			texShader.setUniLoc(
 				mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
 			);
 		}else{

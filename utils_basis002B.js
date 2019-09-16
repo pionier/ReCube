@@ -41,7 +41,6 @@ fDWL.R4D.TriangleBuffer = function( gl, vtxNum ){
 
 	this.positionOffsetInFloats = 0;		// Position Counter
 	this.colorOffsetInBytes = 24;			// Color position Counter
-	this.texOffsetInBytes = this.colorOffsetInBytes+4*Uint8Array.BYTES_PER_ELEMENT;
 	this.numberOfItems = 0;
 };
 
@@ -52,10 +51,10 @@ fDWL.R4D.TriangleBuffer.prototype = {
 		"use strict";
 		const gl = this.gl;
 		gl.bindBuffer( gl.ARRAY_BUFFER, this.triangleVertexBuffer );
-		gl.vertexAttribPointer( shader.attrLoc[0], shader.attrStride[0], gl.FLOAT, false, 36, 0 );
-		gl.vertexAttribPointer( shader.attrLoc[1], shader.attrStride[1], gl.FLOAT, false, 36, 12 );
-		gl.vertexAttribPointer( shader.attrLoc[2], shader.attrStride[2], gl.UNSIGNED_BYTE, true, 36, 24 );
-		gl.vertexAttribPointer( shader.attrLoc[3], shader.attrStride[3], gl.FLOAT, false, 36, 28 );
+		gl.vertexAttribPointer( shader.attrLoc[0], shader.attrStride[0], gl.FLOAT, false, 40, 0 );
+		gl.vertexAttribPointer( shader.attrLoc[1], shader.attrStride[1], gl.FLOAT, false, 40, 12 );
+		gl.vertexAttribPointer( shader.attrLoc[2], shader.attrStride[2], gl.UNSIGNED_BYTE, true, 40, 24 );
+		gl.vertexAttribPointer( shader.attrLoc[3], shader.attrStride[3], gl.FLOAT, false, 40, 28 );
 		
 		gl.useProgram( shader.prg );
 	},
@@ -65,7 +64,6 @@ fDWL.R4D.TriangleBuffer.prototype = {
 		this.itrLvdBuffer = new ArrayBuffer( this.vtxNum * this.vertexSizeInByte );
 		this.positionView = new Float32Array( this.itrLvdBuffer );
 		this.colorView = new Uint8Array( this.itrLvdBuffer );
-		this.texView = new Float32Array( this.itrLvdBuffer );
 		
 		this.numberOfItems = 0;					// Number of Vertex to draw
 		this.positionOffsetInFloats = 0;		// Position Counter
@@ -108,11 +106,9 @@ fDWL.R4D.TriangleBuffer.prototype = {
 		"use strict";
 		const	pV = this.positionView,
 				cV = this.colorView,
-				tV = this.texView,
 				vtx = [ vtx0, vtx1, vtx2 ];
 		let pOffs = this.positionOffsetInFloats,
-			cOffs = this.colorOffsetInBytes,
-			tOffs = this.texOffsetInBytes;
+			cOffs = this.colorOffsetInBytes;
 		
 		for( let cnt = 0; cnt < 3; ++cnt ){
 			
@@ -126,18 +122,16 @@ fDWL.R4D.TriangleBuffer.prototype = {
 			cV[cOffs+1] = vtx[cnt][7];
 			cV[cOffs+2] = vtx[cnt][8];
 			cV[cOffs+3] = vtx[cnt][9];
-			tV[tOffs  ] = vtx[cnt][10];
-			tV[tOffs+1] = vtx[cnt][11];
-			tV[tOffs+2] = vtx[cnt][12];
+			pV[pOffs+7] = vtx[cnt][10];
+			pV[pOffs+8] = vtx[cnt][11];
+			pV[pOffs+9] = vtx[cnt][12];
 			
 			pOffs += this.vertexTexSizeInFloats;
 			cOffs += this.vertexTexSizeInByte;
-			tOffs += this.vertexTexSizeInFloats;
 		}
 		this.numberOfItems += 3;
 		this.positionOffsetInFloats = pOffs;
 		this.colorOffsetInBytes = cOffs;
-		this.texOffsetInBytes = tOffs;
 	},
 
 	draw: function(){
@@ -628,7 +622,7 @@ fDWL.R4D.Pylams4D.prototype = {
 			iPylamid = [ pylamArray[cnt], pylamArray[cnt+1], pylamArray[cnt+2], pylamArray[cnt+3] ];
 			cutType = this.getCutType( this.workVtx, iPylamid, hPos );
 			if( isTex ){
-				texArray = this.makeTexArray( plmCnt, iPylamid );	// iPylamidとVertexBufから逆算してTexIndexを求め、テクスチャ配列を得る
+				texArray = this.makeTexArray( plmCnt, cutType );	// iPylamidとVertexBufから逆算してTexIndexを求め、テクスチャ配列を得る
 			}
 			
 			if( plmCnt == 46 ){
@@ -816,22 +810,19 @@ fDWL.R4D.Pylams4D.prototype = {
 		
 		return [ cutType, iVtx0, iVtx1, iVtx2, iVtx3 ];
 	},
-//	texArray = this.makeTexArray( cnt, iPylamid );	// iPylamidとthis.indexから逆算してTexIndexを求め、テクスチャ配列を得る
-	makeTexArray: function( baseCnt, iPylamid ){
+	makeTexArray: function( baseCnt, cutType ){		// vertex.indexから逆算してTexIndexを求め、テクスチャ配列を得る
 		"use strict";
 		let texArray = [ 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0 ];
-		let vertexBuf = this.workVtx;
-		let cntBegin = baseCnt*4,
-			texBegin = baseCnt*3;
+		const cntBegin = baseCnt*4;
 
 		for( let idx = 0; idx < 4; ++idx ){
-			let vtxIdx = iPylamid[idx];
+			const vtxIdx = cutType[idx+1];
 			// インデックスが一致する場所を探す
 			for( let cnt = 0; cnt < 4; cnt++ ){
 				let idxCnt = cnt+cntBegin;
 				if( vtxIdx == this.index[idxCnt] ){
-					let srcIdx = this.texIndex[texBegin+cnt];
-					let dstIdx = cnt*3;
+					let srcIdx = this.texIndex[idxCnt]*3;
+					let dstIdx = idx*3;
 					texArray[dstIdx  ] = this.texPos[srcIdx  ];
 					texArray[dstIdx+1] = this.texPos[srcIdx+1];
 					texArray[dstIdx+2] = this.texPos[srcIdx+2];
@@ -1029,6 +1020,7 @@ fDWL.R4D.Pylams4D.prototype = {
 				rate12
 			)
 		);
+/**/
 		this.setTriangleTex(
 			fDWL.lerp3(
 				[ vtx[p0][0], vtx[p0][1], vtx[p0][2] ],
@@ -1063,6 +1055,7 @@ fDWL.R4D.Pylams4D.prototype = {
 				rate13
 			)
 		);
+/**/
 	},
 	// 頂点の内１つが３Ｄ空間に包含：２点を算出
 	makeTriangle2Vtx: function( hPos, vtx, cutType, nrm4, clrVec ){
