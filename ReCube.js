@@ -34,12 +34,7 @@ function ReCube(){
 		projMatrix		= mat4.identity(mat4.create()),
 		vepMatrix		= mat4.identity(mat4.create()),
 		mvpMatrix		= mat4.identity(mat4.create()),
-		invMatrix		= mat4.identity(mat4.create()),
-		texMatrix		= mat4.identity(mat4.create()),
-		lgtMatrix		= mat4.identity(mat4.create()),
-		dvMatrix		= mat4.identity(mat4.create()),
-		dpMatrix		= mat4.identity(mat4.create()),
-		dvpMatrix		= mat4.identity(mat4.create());
+		invMatrix		= mat4.identity(mat4.create());
 	
 	const	ROT_RATE = 0.003;
 	let floorPos = [ 0, 0, 0 ];
@@ -146,8 +141,6 @@ function ReCube(){
 	
 	// 視線ベクトル
 	views = {
-//		eyePosition:	[ 0,  SIGHT_HEIGHT, -SIGHT_LENGTH*2 ],
-//		eyePosition:	[ SIGHT_LENGTH*2,  SIGHT_HEIGHT, 0 ],
 		eyePosition:	[ 0,  SIGHT_HEIGHT, SIGHT_LENGTH*2 ],
 		lookAt:			[ 0, 0, -4 ],
 		height:			1
@@ -166,9 +159,10 @@ function ReCube(){
 		gl.getAttribLocation( triangleShader.prg, 'aVertexPosition' ),
 		gl.getAttribLocation( triangleShader.prg, 'aVertexNormal' ),
 		gl.getAttribLocation( triangleShader.prg, 'aVertexColor' ),
-		gl.getAttribLocation( triangleShader.prg, 'texCoord' )
+//		gl.getAttribLocation( triangleShader.prg, 'texCoord' )
 	];
-	triangleShader.attrStride = [ 3, 3, 4, 3 ];
+//	triangleShader.attrStride = [ 3, 3, 4, 3 ];
+	triangleShader.attrStride = [ 3, 3, 4 ];
 	triangleShader.uniLoc = [
 		gl.getUniformLocation( triangleShader.prg, 'mvpMatrix' ),
 		gl.getUniformLocation( triangleShader.prg, 'invMatrix' ),
@@ -179,7 +173,7 @@ function ReCube(){
 	gl.enableVertexAttribArray( triangleShader.attrLoc[0] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[1] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[2] );
-	gl.enableVertexAttribArray( triangleShader.attrLoc[3] );
+//	gl.enableVertexAttribArray( triangleShader.attrLoc[3] );
 	
 	triangleShader.setUniLoc = function( mvpMtx, invMtx, lgtPos, viewDir, color ){
 		"use strict";
@@ -200,7 +194,7 @@ function ReCube(){
 		gl.uniform3fv( uniLoc[3], param[4] );
 		gl.uniform4fv( uniLoc[4], param[5] );
 	};
-/**/
+
 	// Tex用シェーダの生成
 	texShader.prg = createShaderProgram( gl, 'tex_vs', 'tex_fs' );
 	texShader.attrLoc = [
@@ -243,11 +237,12 @@ function ReCube(){
 		gl.uniform4fv( uniLoc[4], param[5] );
 		gl.uniform1i( uniLoc[5], param[6] );
 	};
-/**/
+
 	// ポリゴンバッファ
 	TriBuffer = new fDWL.R4D.TriangleBuffer( gl, TRI_BUFFER_SIZE );
 	
 	// キューブ for 3d
+/**
 	const colorSize = 4;
 	const texSize = 64;
 	const maxTexSize = texSize*texSize*colorSize;
@@ -300,6 +295,7 @@ function ReCube(){
 			}
 		}
 
+		// テクスチャを３D化
 		let depthCnt = 0;
 		for( let idx = 0; idx < texSize; ++idx ){
 			let offs = idx * maxTexSize;
@@ -317,12 +313,68 @@ function ReCube(){
 		}	
 	}());
 /**/
+	const squareSize = 16;
+	const texSize = 128;
+	const colorSize = 4;
+	const maxTexSize = texSize*texSize*colorSize;
+	let tex3D = new Uint8Array(texSize*maxTexSize/2);
+	(function(){
+			function swapPen( penCol, col ){
+			if(( penCol[0] == 255 )&&( penCol[1] == 255 )&&( penCol[2] == 255 )){
+				penCol[0] = 127;
+				penCol[1] = 127;
+				penCol[2] = 127;
+				penCol[col] = 255;
+			}else{
+				penCol[0] = penCol[1] = penCol[2] = 255;
+			}
+			return penCol;
+		}
+
+		let pixCnt = 0;
+		let correntColor = 0;	// 0:red, 1:green, 2:blue, 3:black, 4:white
+		let penColor = [ 255, 127, 127, 255 ];
+		let zSqrCnt = 0;
+		for( let zz = 0; zz < texSize/2; ++zz ){
+			let sqrCnt = 0;
+			for( let yy = 0; yy < texSize; ++yy ){
+				if( yy == texSize/2 ){
+					correntColor += 2;
+				}
+				for( let xx = 0; xx < texSize/squareSize; ++xx ){
+					if( xx == texSize/(squareSize*2) ){
+						correntColor++;
+					}
+					swapPen( penColor, correntColor );
+					for( let qq = 0; qq < squareSize; ++qq ){
+						tex3D[pixCnt  ] = penColor[0];
+						tex3D[pixCnt+1] = penColor[1];
+						tex3D[pixCnt+2] = penColor[2];
+						tex3D[pixCnt+3] = penColor[3];
+						pixCnt += 4;
+					}
+				}
+				correntColor--;
+				sqrCnt++;
+				if( sqrCnt >=squareSize ){
+					sqrCnt = 0;
+					swapPen( penColor, correntColor );
+				}
+			}
+			correntColor = 0;
+			zSqrCnt++;
+			if( zSqrCnt >= squareSize ){
+				zSqrCnt = 0;
+				swapPen( penColor, correntColor );
+			}
+		}
+	}());
+
 	let tex3DObj = gl.createTexture();
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_3D, tex3DObj);
-	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize,texSize,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
+	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize,texSize/2,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
 	gl.generateMipmap(gl.TEXTURE_3D);
-/**/
 
 	// 
 	let ReCube = function( gl, pos, rotate, shader, texObj ){
@@ -497,32 +549,7 @@ function ReCube(){
 			this.calcRotMtx();
 			
 			// 各ローカル基準点の変換
-			this.BodyPos = this.localMtx.mulVec( this.BodyPlace[0], this.BodyPlace[1], this.BodyPlace[2], this.BodyPlace[3] );
-			
-			// 歩行
-			/**
-			if(( this.brain.MainCmd === CmdMvFwd )||( this.brain.MainCmd === CmdMvBack )){
-				const vel = ( this.brain.MainCmd === CmdMvBack )?(-speed):speed;
-				this.pos = fDWL.add4D( this.pos, this.localMtx.mulVec( 0, 0, vel, 0 ) );
-			}
-			// 回転移動
-			/**
-			let rotAng = 0;
-			if( this.brain.MainCmd === CmdMvTurnR ){
-				rotAng = ROT_RATE;
-				this.rot[5] += ROT_RATE;
-				if( this.rot[5] < 0 ){
-					this.rot[5] += Math.PI*2;
-				}
-			}else
-			if( this.brain.MainCmd === CmdMvTurnL ){
-				this.rot[5] -= ROT_RATE;
-				if( this.rot[5] > Math.PI*2 ){
-					this.rot[5] -= Math.PI*2;
-				}
-				rotAng = -ROT_RATE;
-			}
-			/**/
+			this.BodyPos = this.localMtx.mulVec( this.BodyPlace[0], this.BodyPlace[1], this.BodyPlace[2], this.BodyPlace[3] );	
 			this.Body.walk( fDWL.add4D( this.pos, this.BodyPos ), this.rot );
 		},
 		
@@ -551,7 +578,7 @@ function ReCube(){
 	});
 	
 	// テクスチャ無し地面
-	EquinoxFloor.Data = fDWL.tiledFloor( 1.0, 16, [0.1, 0.1, 0.1, 1.0], [1.0, 1.0, 1.0, 1.0 ] );
+	EquinoxFloor.Data = fDWL.tiledFloor( 1.0, 16, [0.01, 0.01, 0.01, 1.0], [1.0, 1.0, 1.0, 1.0 ] );
 	EquinoxFloor.VboList = [
 		fDWL.WGL.createVbo( gl, EquinoxFloor.Data.p ),
 		fDWL.WGL.createVbo( gl, EquinoxFloor.Data.n ),
@@ -635,14 +662,9 @@ function ReCube(){
 	// 恒常ループ
 	function draw(){
 		"use strict";
-		var	texAndRate = [],
-			hPos = 0,
+		var	hPos = 0,
 			isTex = true,
-			eyeRad = 0,
-			currentTime = 0,
-			fldPos = [],
-			fldAng = [],
-			collisionId = 0;
+			currentTime = 0;
 		
 		// 現在のフレーム数を表示
 		cntrls.requestId = requestAnimationFrame( draw );
@@ -656,7 +678,6 @@ function ReCube(){
 /**/
 		// キー入力から移動速度・進行方向・視点位置を修正
 		(function(){
-			var speed = VELOCITY;
 			if( keyStatus[5] ){
 				speed *= 2;
 			}
@@ -803,7 +824,7 @@ function ReCube(){
 		// ビューポート調整
 		gl.viewport( 0.0, 0.0, cnvs.width, cnvs.height );
 		
-//		gl.enable(gl.CULL_FACE);
+		gl.enable(gl.CULL_FACE);
 		
 /**/
 		// 地面
@@ -818,7 +839,6 @@ function ReCube(){
 			floorPos[2] = Math.floor( posWk[2]/2 )*2;
 			
 			mat4.identity( modelMatrix );
-			//mat4.translate( modelMatrix, [0.0, 0.0, 0.0], modelMatrix );
 			mat4.translate( modelMatrix, floorPos, modelMatrix );
 			mat4.multiply( vepMatrix, modelMatrix, mvpMatrix );
 			mat4.inverse( modelMatrix, invMatrix);
@@ -835,62 +855,9 @@ function ReCube(){
 			gl.bindBuffer( gl.ELEMENT_ARRAY_BUFFER, EquinoxFloor.Ibo );
 			gl.drawElements( gl.TRIANGLES, EquinoxFloor.Data.i.length, gl.UNSIGNED_SHORT, 0 );
 		}());
-/**
-		
-		// 注視点位置表示
-		(function(){
-			"use strict";
-			var rotate = [];
-			Roller.setPos( [ views.lookAt[0], views.lookAt[1]+Roller.height-views.height, views.lookAt[2] ] );
-			rotate = Roller.getRotate();
-			// Rollerの回転
-			rotate[0] += moveXZ.vel;
-			if( rotate[0] >= Math.PI*2 ){
-				rotate[0] -= Math.PI*2;
-			}
-			// Roller方向変更の遅延反映
-			rotate[1] = ( rotate[1]*7 + Math.PI*2 - moveXZ.rot )/8;
-			Roller.setRotate( rotate );
-			Roller.prepDraw( triangleShader, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
-			Roller.draw( triangleShader );
-		}());
-/**/
 		
 		// LegBrain
 		let isReset = false;
-		// 移動テスト用キー入力判定 5b,6f,7_,8p,9r
-		/**
-		const cmd = LegBrain.MainCmd;
-		if(( keyStatus[0] )&&( !keyBackup[0] )){	// forward
-			LegBrain.rcvCmd( CmdMvFwd, CmdListOut );
-		}
-		if(( keyStatus[1] )&&( !keyBackup[1] )){	// back
-			LegBrain.rcvCmd( CmdMvBack, CmdListOut );
-		}
-		if(( keyStatus[7] )&&( !keyBackup[7] )){	// ' '
-			LegBrain.rcvCmd( CmdMvStop, CmdListOut );
-		}
-		if(( keyStatus[8] )&&( !keyBackup[8] )){	// 'r'
-			isReset = true;
-		}
-		if(( keyStatus[2] )&&( !keyBackup[2] )){	// rotate
-			LegBrain.rcvCmd( CmdMvTurnL, CmdListOut );
-		}
-		if(( keyStatus[3] )&&( !keyBackup[3] )){	// rotate
-			LegBrain.rcvCmd( CmdMvTurnR, CmdListOut );
-		}
-		// 視野からはみ出たときの処理
-		const wkPos = Walker.getPos();
-		const ViewOffset = 2.6;
-		if( wkPos[3] < hPos-ViewOffset ){
-			LegBrain.rcvCmd( CmdMvFwd, CmdListOut );
-		}else
-		if( wkPos[3] > hPos+ViewOffset ){
-			LegBrain.rcvCmd( CmdMvBack, CmdListOut );
-		}
-		
-		LegBrain.checkCmdList();
-		/**/
 		keyBackup = keyStatus.concat();
 		
 		let rotWalker = [
@@ -908,20 +875,12 @@ function ReCube(){
 			views.lookAt = [ 0, 0, -4 ];
 			return;
 		}
-		/*
-		rotWalker[0] = Cube.getRotate()[0];			// XY回転の制御
-		rotWalker[1] = Cube.getRotate()[1];			// YZ回転の制御
-		rotWalker[2] = Cube.getRotate()[2];			// YH回転の制御
-		rotWalker[3] = Cube.getRotate()[3];			// ZH回転の制御
-		rotWalker[4] = Cube.getRotate()[4];			// XZ回転の制御
-		rotWalker[5] = Cube.getRotate()[5];			// XZ回転の制御
-		*/
+
 		Cube.setRotate( rotWalker );
 		if(( cntrls.wkrPos[0] !== Cube.pos[0] )||( cntrls.wkrPos[1] !== Cube.pos[1] )||( cntrls.wkrPos[2] !== Cube.pos[2] )||( cntrls.wkrPos[3] !== Cube.pos[3] )){
 			isRedraw = true;
 			cntrls.wkrPos = Cube.pos.concat();
 		}
-//		Cube.walk( cntrls.Dist.value/100 );	// APIは仮
 		Cube.walk( 0.01 );	// APIは仮
 		if( isRedraw ){
 			// 八胞体切断体の作成
