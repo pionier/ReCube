@@ -551,20 +551,10 @@ fDWL.R4D.Pylams4D = function( gl, prg, pos, rotate, scale, vertex, color, center
 	this.center = fDWL.R4D.affine4D( center, rot, offs, scale );
 	this.centerIndex = centIdx;
 	
-	/**
-	// 中心配列の生成
-	this.centers = [];
-	for( let idx = 0; idx < chrnIdx.length; idx += 5 ){
-		vertIdx = [ chrnIdx[idx], chrnIdx[idx+1], chrnIdx[idx+2], chrnIdx[idx+3], chrnIdx[idx+4] ];
-		center = fDWL.calcAve( 4, 5, vertex, vertIdx );
-		this.centers.push( center[0], center[1], center[2], center[3] );
-	}
-	/**/
 	// 体の法線の算出
 	this.centers = center;
 	this.fieldNormal = [];
 	for( let idx = 0; idx < index.length; idx += 4 ){
-//		vId = idx*4;
 		vId = idx;
 		// 四面体
 		vert = [
@@ -611,7 +601,7 @@ fDWL.R4D.Pylams4D.prototype = {
 			fldCnt = 0,
 			norVec,
 			clrCnt = 0,
-			clrVec = [ 128, 128, 128, 128 ],
+			clrVec = [ 255, 255, 255, 255 ],
 			texArray = [],
 			pylamArray = this.index;
 

@@ -1,6 +1,6 @@
 //==================================================================================
 //	Re-Cube	--- Re-development for 4D driver
-//	2018/01/20	by pionier
+//	2019/09/25	by pionier
 //	http://www7b.biglobe.ne.jp/~fdw
 //==================================================================================
 
@@ -21,12 +21,10 @@ function ReCube(){
 		TriBuffer = {},
 		TRI_BUFFER_SIZE = 4096,
 		WalkerBody_SCALE = 1,
-		Phoenix_OffsY = 0,
 		Phoenix_OffsH = 3,
 		EquinoxFloor = {},
 		SIGHT_LENGTH = 3*2,
 		SIGHT_HEIGHT = 2,
-		VELOCITY = 0.05,
 		Roller = {},
 		modelMatrix		= mat4.identity(mat4.create()),
 		viewMatrix		= mat4.identity(mat4.create()),
@@ -36,7 +34,6 @@ function ReCube(){
 		mvpMatrix		= mat4.identity(mat4.create()),
 		invMatrix		= mat4.identity(mat4.create());
 	
-	const	ROT_RATE = 0.003;
 	let floorPos = [ 0, 0, 0 ];
 	
 	try{
@@ -53,84 +50,9 @@ function ReCube(){
 		alert("Catch: Fail to create GL.\r\nPlease use Chrome or FireFox.");
 		return;
 	}
-	// ブラウザごとのキーイベント名称を取得
-	let keyEventNames = getKeyEventNames( fDWL.getBrowserInfo( gl ) );
 	
 	cnvs.width  = 512;
 	cnvs.height = 384;
-	
-	// キーイベント
-	let keyStatus = [ false, false, false, false, false, false, false, false, false ];
-	let keyBackup = [ false, false, false, false, false, false, false, false, false ];
-	if( window.addEventListener ){
-		function KeyDownFunc( evt ){
-			"use strict";
-			const keyname = evt.key;
-			if( keyname === keyEventNames.up ){
-				keyStatus[0] = true;
-			}
-			if( keyname === keyEventNames.down ){
-				keyStatus[1] = true;
-			}
-			if( keyname === keyEventNames.left ){
-				keyStatus[2] = true;
-			}
-			if( keyname === keyEventNames.right ){
-				keyStatus[3] = true;
-			}
-			if( keyname === keyEventNames.shift ){
-				keyStatus[4] = true;
-			}
-			if( keyname === keyEventNames.keyB ){
-				keyStatus[5] = true;
-			}
-			if( keyname === keyEventNames.ctrl ){
-				keyStatus[6] = true;
-			}
-			if( keyname === keyEventNames.space ){
-				keyStatus[7] = true;
-			}
-			if( keyname === keyEventNames.keyR ){
-				keyStatus[8] = true;
-			}
-		}
-		
-		function KeyUpFunc( evt ){
-			"use strict";
-			const keyname = evt.key;
-			if( keyname === keyEventNames.up ){
-				keyStatus[0] = false;
-			}
-			if( keyname === keyEventNames.down ){
-				keyStatus[1] = false;
-			}
-			if( keyname === keyEventNames.left ){
-				keyStatus[2] = false;
-			}
-			if( keyname === keyEventNames.right ){
-				keyStatus[3] = false;
-			}
-			if( keyname === keyEventNames.shift ){
-				keyStatus[4] = false;
-			}
-			if( keyname === keyEventNames.keyB ){
-				keyStatus[5] = false;
-			}
-			if( keyname === keyEventNames.ctrl ){
-				keyStatus[6] = false;
-			}
-			if( keyname === keyEventNames.space ){
-				keyStatus[7] = false;
-			}
-			if( keyname === keyEventNames.keyR ){
-				keyStatus[8] = false;
-			}
-		}
-		// ドキュメントにリスナーを登録
-		document.addEventListener( "keydown", KeyDownFunc, false );
-		document.addEventListener( "keyup", KeyUpFunc, false );
-		
-	}
 	
 	// 移動方向
 	let moveXZ = {
@@ -159,9 +81,7 @@ function ReCube(){
 		gl.getAttribLocation( triangleShader.prg, 'aVertexPosition' ),
 		gl.getAttribLocation( triangleShader.prg, 'aVertexNormal' ),
 		gl.getAttribLocation( triangleShader.prg, 'aVertexColor' ),
-//		gl.getAttribLocation( triangleShader.prg, 'texCoord' )
 	];
-//	triangleShader.attrStride = [ 3, 3, 4, 3 ];
 	triangleShader.attrStride = [ 3, 3, 4 ];
 	triangleShader.uniLoc = [
 		gl.getUniformLocation( triangleShader.prg, 'mvpMatrix' ),
@@ -173,7 +93,6 @@ function ReCube(){
 	gl.enableVertexAttribArray( triangleShader.attrLoc[0] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[1] );
 	gl.enableVertexAttribArray( triangleShader.attrLoc[2] );
-//	gl.enableVertexAttribArray( triangleShader.attrLoc[3] );
 	
 	triangleShader.setUniLoc = function( mvpMtx, invMtx, lgtPos, viewDir, color ){
 		"use strict";
@@ -242,85 +161,19 @@ function ReCube(){
 	TriBuffer = new fDWL.R4D.TriangleBuffer( gl, TRI_BUFFER_SIZE );
 	
 	// キューブ for 3d
-/**
-	const colorSize = 4;
-	const texSize = 64;
-	const maxTexSize = texSize*texSize*colorSize;
-	let tex3D = new Uint8Array(texSize*maxTexSize);
-	(function(){
-		let texData = new Uint8Array(maxTexSize);
-		let texData2 = new Uint8Array(maxTexSize);
-		for( let idx = 0; idx < maxTexSize; idx += colorSize*8 ){
-			let redVal = 255;
-			let greenVal = 127;
-			let blueVal = 127;
-			if(( ( 4*texSize*colorSize) <= idx )&&( idx < ( 8*texSize*colorSize)) ||
-			( (12*texSize*colorSize) <= idx )&&( idx < (16*texSize*colorSize)) ||
-			( (20*texSize*colorSize) <= idx )&&( idx < (24*texSize*colorSize)) ||
-			( (28*texSize*colorSize) <= idx )&&( idx < (32*texSize*colorSize)) ||
-			( (36*texSize*colorSize) <= idx )&&( idx < (40*texSize*colorSize)) ||
-			( (44*texSize*colorSize) <= idx )&&( idx < (48*texSize*colorSize)) ||
-			( (52*texSize*colorSize) <= idx )&&( idx < (56*texSize*colorSize)) ||
-			( (60*texSize*colorSize) <= idx )&&( idx < (64*texSize*colorSize))
-			){
-				redVal = 127;
-				blueVal = 255;
-			}
-			if( idx > maxTexSize/2){
-				greenVal = 255;
-			}else{
-				greenVal = 127;
-			}
-			for( let subIdx = 0; subIdx < 4; subIdx++ ){
-				let offs = idx+(subIdx*4);
-				texData[offs  ] = redVal;
-				texData[offs+1] = 127;
-				texData[offs+2] = blueVal;
-				texData[offs+3] = 255;
-				texData2[offs]  = blueVal;
-				texData2[offs+1] = 127;
-				texData2[offs+2] = redVal;
-				texData2[offs+3] = 255;
-			}
-			for( let subIdx = 0; subIdx < 4; subIdx++ ){
-				let offs = idx+16+(subIdx*4);
-				texData[offs  ] = blueVal;
-				texData[offs+1] = 127;
-				texData[offs+2] = redVal;
-				texData[offs+3] = 255;
-				texData2[offs]  = redVal;
-				texData2[offs+1] = 127;
-				texData2[offs+2] = blueVal;
-				texData2[offs+3] = 255;
-			}
-		}
-
-		// テクスチャを３D化
-		let depthCnt = 0;
-		for( let idx = 0; idx < texSize; ++idx ){
-			let offs = idx * maxTexSize;
-			if(depthCnt >= colorSize*2){
-				depthCnt = 0;
-			}
-			for( let subIdx = 0; subIdx < maxTexSize; ++subIdx ){
-				if(depthCnt < 4){
-					tex3D[offs+subIdx] = texData[subIdx];
-				}else{
-					tex3D[offs+subIdx] = texData2[subIdx];
-				}
-			}
-			depthCnt++;
-		}	
-	}());
 /**/
+	// テクスチャ作成
 	const squareSize = 16;
 	const texSize = 128;
+	const texSize2 = texSize-(squareSize*2);
 	const colorSize = 4;
 	const maxTexSize = texSize*texSize*colorSize;
 	let tex3D = new Uint8Array(texSize*maxTexSize/2);
 	(function(){
+		"use strict";
 			function swapPen( penCol, col ){
-			if(( penCol[0] == 255 )&&( penCol[1] == 255 )&&( penCol[2] == 255 )){
+				"use strict";
+				if(( penCol[0] == 255 )&&( penCol[1] == 255 )&&( penCol[2] == 255 )){
 				penCol[0] = 127;
 				penCol[1] = 127;
 				penCol[2] = 127;
@@ -335,10 +188,10 @@ function ReCube(){
 		let correntColor = 0;	// 0:red, 1:green, 2:blue, 3:black, 4:white
 		let penColor = [ 255, 127, 127, 255 ];
 		let zSqrCnt = 0;
-		for( let zz = 0; zz < texSize/2; ++zz ){
+		for( let zz = 0; zz < texSize2/2; ++zz ){
 			let sqrCnt = 0;
-			for( let yy = 0; yy < texSize; ++yy ){
-				if( yy == texSize/2 ){
+			for( let yy = 0; yy < texSize2; ++yy ){
+				if( yy == texSize2/2 ){
 					correntColor += 2;
 				}
 				for( let xx = 0; xx < texSize/squareSize; ++xx ){
@@ -369,11 +222,11 @@ function ReCube(){
 			}
 		}
 	}());
-
+	// テクスチャ設定
 	let tex3DObj = gl.createTexture();
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_3D, tex3DObj);
-	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize,texSize/2,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
+	gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, texSize,texSize2,texSize2/2,0, gl.RGBA, gl.UNSIGNED_BYTE, tex3D);
 	gl.generateMipmap(gl.TEXTURE_3D);
 
 	// 
@@ -386,9 +239,21 @@ function ReCube(){
 		this.localMtx = new fDWL.R4D.Matrix4();
 		this.tex = texObj;
 		this.texType = gl.TEXTURE_3D;
-		const texSizeB = 0.05;
-		const texSizeE = 0.95;
-
+		const texXL0 = 0.02;
+		const texXL1 = 0.14;
+		const texXL2 = 0.36;
+		const texXL3 = 0.48;
+		const texXR0 = 0.52;
+		const texXR1 = 0.64;
+		const texXR2 = 0.86;
+		const texXR3 = 0.98;
+		const texYU0 = 0.02;
+		const texYU1 = 0.48;
+		const texYD0 = 0.52;
+		const texYD1 = 0.98;
+		const texZ0  = 0.02;
+		const texZ1  = 0.98;
+/**/
 		// 胴体部分
 		this.Body = new fDWL.R4D.Pylams4D(
 			gl,
@@ -425,22 +290,44 @@ function ReCube(){
 			[	// texPos
 //				0.0, 1.0, 1.0,  1.0, 1.0, 1.0,  0.0, 0.0, 1.0,  1.0, 0.0, 1.0,
 //				1.0, 1.0, 0.0,  0.0, 1.0, 0.0,  1.0, 0.0, 0.0,  0.0, 0.0, 0.0
-				texSizeB, texSizeE, texSizeE,  texSizeE, texSizeE, texSizeE,  texSizeB, texSizeB, texSizeE,  texSizeE, texSizeB, texSizeE,
-				texSizeE, texSizeE, texSizeB,  texSizeB, texSizeE, texSizeB,  texSizeE, texSizeB, texSizeB,  texSizeB, texSizeB, texSizeB
+				// 赤角赤
+				texXL0, texYU1, texZ1,  texXL2, texYU1, texZ1,  texXL0, texYU0, texZ1,   texXL2, texYU0, texZ1,
+				texXL2, texYU1, texZ0,  texXL0, texYU1, texZ0,  texXL2, texYU0, texZ0,   texXL0, texYU0, texZ0,
+				// 赤角白
+				texXL1, texYU1, texZ1,  texXL3, texYU1, texZ1,  texXL1, texYU0, texZ1,   texXL3, texYU0, texZ1,
+				texXL3, texYU1, texZ0,  texXL1, texYU1, texZ0,  texXL3, texYU0, texZ0,   texXL1, texYU0, texZ0,
+				// 緑角緑
+				texXR0, texYU1, texZ1,  texXR2, texYU1, texZ1,  texXR0, texYU0, texZ1,   texXR2, texYU0, texZ1,
+				texXR2, texYU1, texZ0,  texXR0, texYU1, texZ0,  texXR2, texYU0, texZ0,   texXR0, texYU0, texZ0,
+				// 緑角白
+				texXR1, texYU1, texZ1,  texXR3, texYU1, texZ1,  texXR1, texYU0, texZ1,   texXR3, texYU0, texZ1,
+				texXR3, texYU1, texZ0,  texXR1, texYU1, texZ0,  texXR3, texYU0, texZ0,   texXR1, texYU0, texZ0,
+				// 青角青
+				texXL1, texYD1, texZ1,  texXL3, texYD1, texZ1,  texXL1, texYD0, texZ1,   texXL3, texYD0, texZ1,
+				texXL3, texYD1, texZ0,  texXL1, texYD1, texZ0,  texXL3, texYD0, texZ0,   texXL1, texYD0, texZ0,
+				// 青角白
+				texXL0, texYD1, texZ1,  texXL2, texYD1, texZ1,  texXL0, texYD0, texZ1,   texXL2, texYD0, texZ1,
+				texXL2, texYD1, texZ0,  texXL0, texYD1, texZ0,  texXL2, texYD0, texZ0,   texXL0, texYD0, texZ0,
+				// 黒角黒
+				texXR0, texYD1, texZ1,  texXR2, texYD1, texZ1,  texXR0, texYD0, texZ1,   texXR2, texYD0, texZ1,
+				texXR2, texYD1, texZ0,  texXR0, texYD1, texZ0,  texXR2, texYD0, texZ0,   texXR0, texYD0, texZ0,
+				// 黒角白
+				texXR1, texYD1, texZ1,  texXR3, texYD1, texZ1,  texXR1, texYD0, texZ1,   texXR3, texYD0, texZ1,
+				texXR3, texYD1, texZ0,  texXR1, texYD1, texZ0,  texXR3, texYD0, texZ0,   texXR1, texYD0, texZ0,
 			],
 			[	// texIdx corespodent with index of Pyramids
 /**/
-				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
-				0,1,2,5,  1,2,3,6,  4,5,6,1,  5,6,7,2,  1,2,5,6,
+				48,49,50,53,  49,50,51,54,  52,53,54,49,  53,54,55,50,  49,50,53,54,
+				56,57,58,61,  57,58,59,62,  60,61,62,57,  61,62,63,58,  57,58,61,62,
 /**/
-				1,0,3,4,  0,3,2,7,  5,4,7,0,  3,7,4,6,  0,3,7,4,
-				1,0,3,4,  0,3,2,7,  4,6,7,3,  4,5,7,0,  3,0,4,7,
+				1,0, 3, 4,  0, 3, 2, 7,   5, 4, 7,0,   3, 7, 4, 6,   0,3, 7, 4,
+				9,8,11,12,  8,11,10,15,  12,13,15,8,  12,14,15,11,  11,8,12,15,
 /**/
-				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
-				2,0,1,5,  2,3,1,6,  5,4,6,1,  5,6,7,2,  2,1,6,5,
+				16,17,18,21,  17,18,19,22,  21,20,22,17,  21,22,23,18,  17,18,21,22,
+				26,24,25,29,  26,27,25,30,  29,28,30,25,  29,30,31,26,  26,25,30,29,
 /**/
-				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6,
-				0,1,2,5,  1,2,3,6,  5,4,6,1,  5,6,7,2,  1,2,5,6
+				32,33,34,37,  33,34,35,38,  37,36,38,33,  37,38,39,34,  33,34,37,38,
+				40,41,42,45,  41,42,43,46,  45,44,46,41,  45,46,47,42,  41,42,45,46,
 /**/
 			],
 			// Texture Object
@@ -496,7 +383,6 @@ function ReCube(){
 			for( let idx = 0; idx < LEG_NUM; ++idx ){
 				this.Legs[idx].resetPos( this.resetParam );
 			}
-			//this.isReset = this.resetParam.isReset;
 		},
 		isReset:	function(){
 			return false;
@@ -621,7 +507,6 @@ function ReCube(){
 	cntrls.RotZH = document.getElementById('RotZH');
 	cntrls.RotXH = document.getElementById('RotXH');
 	cntrls.RotXZ = document.getElementById('RotXZ');
-	cntrls.Dist = document.getElementById('Dist');
 	
 	cntrls.RotXYTxt = document.getElementById('RotXYTxt');
 	cntrls.RotYZTxt = document.getElementById('RotYZTxt');
@@ -629,7 +514,6 @@ function ReCube(){
 	cntrls.RotZHTxt = document.getElementById('RotZHTxt');
 	cntrls.RotXHTxt = document.getElementById('RotXHTxt');
 	cntrls.RotXZTxt = document.getElementById('RotXZTxt');
-	cntrls.DistTxt = document.getElementById('DistTxt');
 	
 	cntrls.oldHPos = (-100);
 	cntrls.oldHPosBox = cntrls.eHPos.value;
@@ -640,7 +524,6 @@ function ReCube(){
 	cntrls.RotZH.old = cntrls.RotZH.value;
 	cntrls.RotXH.old = cntrls.RotXH.value;
 	cntrls.RotXZ.old = cntrls.RotXZ.value;
-	cntrls.Dist.old = cntrls.Dist.value;
 	
 	cntrls.RotXYTxt.old = cntrls.RotXY.value;
 	cntrls.RotYZTxt.old = cntrls.RotYZ.value;
@@ -648,7 +531,6 @@ function ReCube(){
 	cntrls.RotZHTxt.old = cntrls.RotZH.value;
 	cntrls.RotXHTxt.old = cntrls.RotXH.value;
 	cntrls.RotXZTxt.old = cntrls.RotXZ.value;
-	cntrls.DistTxt.old = cntrls.DistTxt.value;
 	
 	cntrls.wkrPos = [ 0,0,0,0 ];
 	
@@ -656,14 +538,12 @@ function ReCube(){
 	cntrls.RotXY.value = 100;
 	cntrls.RotYZ.value = 256;
 	
-	
 	draw();
 	
 	// 恒常ループ
 	function draw(){
 		"use strict";
 		var	hPos = 0,
-			isTex = true,
 			currentTime = 0;
 		
 		// 現在のフレーム数を表示
@@ -678,22 +558,9 @@ function ReCube(){
 /**/
 		// キー入力から移動速度・進行方向・視点位置を修正
 		(function(){
-			if( keyStatus[5] ){
-				speed *= 2;
-			}
-			moveXZ.vel = 0.0;
-			
-			// 移動偏差
-			var sinRot = Math.sin( moveXZ.rot ),
-				cosRot = Math.cos( moveXZ.rot );
-			moveXZ.dif[0] = -sinRot*moveXZ.vel;
-			moveXZ.dif[1] =  cosRot*moveXZ.vel;
-			// 衝突判定による位置調整を行う
-			checkCollision( views.lookAt, moveXZ );
-			views.lookAt[0] += moveXZ.dif[0];
-			views.lookAt[1] = views.height;
-			views.lookAt[2] += moveXZ.dif[1];
 			// 視点位置
+			var sinRot = Math.sin( Math.PI/2 ),
+				cosRot = Math.cos( Math.PI/2 );
 			views.eyePosition[0] = views.lookAt[0] + sinRot*SIGHT_LENGTH;
 			views.eyePosition[1] = views.lookAt[1] +        SIGHT_HEIGHT - views.height;
 			views.eyePosition[2] = views.lookAt[2] - cosRot*SIGHT_LENGTH;
@@ -728,7 +595,6 @@ function ReCube(){
 /**/
 		
 		// 入力ボックス：変更適用
-//		let isRedraw = false;
 		let isRedraw = true;
 		if( cntrls.eHPos.value !== cntrls.oldHPos ){
 			cntrls.eHPosBox.value = cntrls.eHPos.value;
@@ -772,14 +638,6 @@ function ReCube(){
 		if( cntrls.RotXZTxt.old !== cntrls.RotXZTxt.value ){
 			cntrls.RotXZ.value = cntrls.RotXZTxt.value;
 		}
-		if( cntrls.Dist.old !== cntrls.Dist.value ){
-			isRedraw = true;
-			cntrls.DistTxt.value = cntrls.Dist.value;
-		}else
-		if( cntrls.DistTxt.old !== cntrls.DistTxt.value ){
-			isRedraw = true;
-			cntrls.Dist.value = cntrls.DistTxt.value;
-		}
 		
 		// H軸位置設定
 		hPos = cntrls.eHPos.value*(0.01)+0.01;
@@ -802,15 +660,13 @@ function ReCube(){
 		cntrls.RotZH.old = cntrls.RotZH.value;
 		cntrls.RotXH.old = cntrls.RotXH.value;
 		cntrls.RotXZ.old = cntrls.RotXZ.value;
-		cntrls.Dist.old = cntrls.Dist.value;
 		cntrls.RotXYTxt.old = cntrls.RotXYTxt.value;
 		cntrls.RotYZTxt.old = cntrls.RotYZTxt.value;
 		cntrls.RotYHTxt.old = cntrls.RotYHTxt.value;
 		cntrls.RotZHTxt.old = cntrls.RotZHTxt.value;
 		cntrls.RotXHTxt.old = cntrls.RotXHTxt.value;
 		cntrls.RotXZTxt.old = cntrls.RotXZTxt.value;
-		cntrls.DistTxt.old = cntrls.DistTxt.value;
-		if(( moveXZ.vel != 0 )||( cntrls.oldHPos != cntrls.eHPos.value )){
+		if( cntrls.oldHPos != cntrls.eHPos.value ){
 			isRedraw = true;
 		}
 		// 現hPos値の記録
@@ -858,7 +714,6 @@ function ReCube(){
 		
 		// LegBrain
 		let isReset = false;
-		keyBackup = keyStatus.concat();
 		
 		let rotWalker = [
 			cntrls.RotXY.value/100,
@@ -886,27 +741,18 @@ function ReCube(){
 			// 八胞体切断体の作成
 			TriBuffer.initialize( texShader );
 		}
-		Cube.draw( isTex, isRedraw, hPos, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
+		Cube.draw( true, isRedraw, hPos, vepMatrix, [ 0, 0, 0, light00.position, views.eyePosition, light00.ambient ] );
 		
 		// 三角バッファの描画
 		gl.disable(gl.CULL_FACE);
-		if(isTex){
-			TriBuffer.useProgram( texShader );
-		}else{
-			TriBuffer.useProgram( triangleShader );
-		}
+		TriBuffer.useProgram( texShader );
+
 		mat4.identity( modelMatrix );
 		mat4.inverse( modelMatrix, invMatrix);
 		mat4.multiply( vepMatrix, modelMatrix, mvpMatrix );
-		if(isTex){
-			texShader.setUniLoc(
-				mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
-			);
-		}else{
-			triangleShader.setUniLoc(
-				mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
-			);
-		}
+		texShader.setUniLoc(
+			mvpMatrix, invMatrix, light00.position, views.eyePosition, light00.ambient
+		);
 		TriBuffer.draw();
 		
 		// コンテキストの再描画
@@ -914,22 +760,6 @@ function ReCube(){
 		
 		cntrls.nbrOfFramesForFps++;
 	}
-	
-	// 衝突判定による位置調整を行う
-	function checkCollision( viewPos, moveXZ ){
-		"use strict";
-		var pos = [];
-		
-		pos[0] = viewPos[0]+moveXZ.dif[0];	// 
-		pos[2] = viewPos[2]+moveXZ.dif[1];	// 移動先で判定
-		
-		if(( pos[0] < -8 )||( 8 < pos[0] )){
-			moveXZ.dif[0] = 0;
-		}
-		if(( pos[2] < -8 )||( 8 < pos[2] )){
-			moveXZ.dif[1] = 0;
-		}
-	};
 	
 	// プログラムオブジェクトとシェーダを生成しリンクする関数
 	function createShaderProgram( gl, vsId, fsId ){
@@ -966,38 +796,6 @@ function ReCube(){
 			alert(gl.getProgramInfoLog(program));
 			return;
 		}
-	};
-	
-	
-	// ブラウザごとのキーイベント名称を取得
-	function getKeyEventNames( browserInfo ){
-		"use strict";
-		let info = {
-			up:		"ArrowUp",
-			down:	"ArrowDown",
-			left:	"ArrowLeft",
-			right:	"ArrowRight",
-			shift:	"Shift",
-			ctrl:	"Control",
-			space:	" ",
-			keyB:	"b",
-			keyF:	"f",
-			keyG:	"g",
-			keyP:	"p",
-			keyR:	"r",
-		};
-		
-		if( browserInfo[0] === "Microsoft Edge" ){
-			info.up = "Up";
-			info.down = "Down";
-			info.left = "Left";
-			info.right = "Right";
-		}
-		
-		return info;
-	};
+	}
 };
-
-
-
 

@@ -60,7 +60,7 @@
 			float specular	= pow( clamp( dot(aVertexNormal, halfLE), 0.0, 1.0 ), 50.0 )*0.5;
 			float difuse	= clamp( dot( aVertexNormal, invLight) + specular, 0.2, 1.0 );
 			vec4 light		= aVertexColor * vec4(vec3(difuse), 1.0);
-			vColor			= light + ambientColor;
+			vColor			= clamp( (light + ambientColor), 0.0, 1.0 );
 			gl_Position		= mvpMatrix * vec4(aVertexPosition, 1.0);
 			v3_texCoord		= texCoord;
 		}
@@ -75,11 +75,12 @@
 		uniform sampler3D s3_texture;
 		out vec4 outColor;
 		void main() {
+			outColor = clamp((vColor*texture(s3_texture, v3_texCoord)*1.7), 0.0, 1.0);
 			//outColor = (vColor + texture(s3_texture, v3_texCoord))*0.5;
-			outColor = texture(s3_texture, v3_texCoord);
+			//outColor = texture(s3_texture, v3_texCoord);
 		}
 	</script>
-	
+	<link rel="stylesheet" type="text/css" href="fdw_std.css">
 </head>
 
 <body>
@@ -90,9 +91,12 @@
 <script>
 	window.addEventListener("DOMContentLoaded",function(){ ReCube(); }, false);
 </script>
+	<header>
+			<h1>fDWalkers</h1>
+	</header>
 
-<section style="font-size:16px"><b>Re Cube</b>
-<hr size=5 color=maroon>
+	<section style="font-size:16px"><b>Re Cube</b>
+	<hr size=5 color=maroon>
 
 <!-- 内容項目 -->
 <section>
@@ -116,23 +120,11 @@
 	<div>
 		<input id="RotZH" type = "range" value="0" max="628" min="0"> Rot ZH
 		<input id="RotZHTxt" type="text" value="0"><br>
-		<input id="RotXZ" type = "range" value="0" max="628" min="0"> Rot XZ
-		<input id="RotXZTxt" type="text" value="0"><br>
+		<input id="RotXZ" type = "range" value="333" max="628" min="0"> Rot XZ
+		<input id="RotXZTxt" type="text" value="333"><br>
 		<input id="RotXH" type = "range" value="0" max="628" min="0"> Rot XH
 		<input id="RotXHTxt" type="text" value="0">
 	</div>
-	<div>
-		<input id="Dist" type = "range" value="350" max="380" min="-350"> Dist
-		<input id="DistTxt" type="text" value="350">
-	</div>
-	<form name="dispType">表示三角錐型
-		<p>
-			<input type="checkbox" name="dispPyramType" value="1" checked="checked">0
-			<input type="checkbox" name="dispPyramType" value="2" checked="checked">1
-			<input type="checkbox" name="dispPyramType" value="3" checked="checked">2
-			<input type="checkbox" name="dispPyramType" value="4" checked="checked">3
-		</p>
-	</form>
 	<br>
 	回転方向について：<br>
 	Rot XYはＸＹ平面上の回転を意味します。<br>
@@ -143,8 +135,14 @@
 	"Rot XY" means rotation on X-Y plane.<br>
 	In 3D space, it is Z-axis rotation.<br>
 	"H" means the 4th direction of 4D space.<br>
-	<p style="text-align:right">2017Feb02 <a href="http://www7b.biglobe.ne.jp/~fdw/">fDWalkers</a></p>
+	<p style="text-align:right">2019Oct31 <a href="http://www7b.biglobe.ne.jp/~fdw/">fDWalkers</a></p>
 </section>
+<footer>
+	<a href="./main_page.html">メインページへ</a>
+	<h1>
+		fDW(2015Oct31-   )　
+	</h1>
+</footer>
 
 </div>
 </body>
