@@ -364,6 +364,23 @@ fDWL.addArray = function( array0, array1 ){
 	return dst;
 }
 
+//==================================================================
+// shimadaProd
+// 島田積（４次元外積）
+//------------------------------------------------------------------
+//
+//==================================================================
+fDWL.R4D.shimadaProd = function( v0, v1, v2 ){
+	"use strict";
+	let vec = [
+		-(v0[1]*v1[2]*v2[3]+v0[2]*v1[3]*v2[1]+v0[3]*v1[1]*v2[2]-v0[1]*v1[3]*v2[2]-v0[2]*v1[1]*v2[3]-v0[3]*v1[2]*v2[1]),
+		 (v0[0]*v1[2]*v2[3]+v0[2]*v1[3]*v2[0]+v0[3]*v1[0]*v2[2]-v0[0]*v1[3]*v2[2]-v0[2]*v1[0]*v2[3]-v0[3]*v1[2]*v2[0]),
+		-(v0[0]*v1[1]*v2[3]+v0[1]*v1[3]*v2[0]+v0[3]*v1[0]*v2[1]-v0[0]*v1[3]*v2[1]-v0[1]*v1[0]*v2[3]-v0[3]*v1[1]*v2[0]),
+		 (v0[0]*v1[1]*v2[2]+v0[1]*v1[2]*v2[0]+v0[2]*v1[0]*v2[1]-v0[0]*v1[2]*v2[1]-v0[1]*v1[0]*v2[2]-v0[2]*v1[1]*v2[0])
+	];
+
+	return vec;
+}
 
 //==================================================================
 // calcNormal4D
@@ -385,96 +402,9 @@ fDWL.R4D.calcNormal4D = function( vertice, center ){
 		isEnd = false,
 		sign = 0;
 	
-	// 前処理：体に垂直なケースを取り除く
-	for( let idx = 0; idx < 4; ++idx ){
-		if(( v0[idx] == 0 )&&( v1[idx] == 0 )&&( v2[idx] == 0 )){
-			nor4D[idx] = 1.0;
-			isEnd = true;
-			break;
-		}
-	}
-	// 本処理：ガウス・ジョルダン法
-	while( !isEnd ){
-		// X座標のピボットを得る
-		const tmp0 = Math.abs( v0[0] ), tmp1 = Math.abs( v1[0] ), tmp2 = Math.abs( v2[0] );
-		// ベクトルの並び替え
-		if( tmp0 >= tmp1 ){
-			if( tmp1 >= tmp2 ){
-				// tmp0 >= tmp1 >= tmp2
-				vec0 = v0, vec1 = v1, vec2 = v2;
-			}else
-			if( tmp0 >= tmp2 ){
-				// tmp0 >= tmp2 >= tmp1
-				vec0 = v0, vec1 = v2, vec2 = v1;
-			}else{
-				// tmp2 >= tmp0 >= tmp1
-				vec0 = v1, vec1 = v2, vec2 = v0;
-			}
-		}else{
-			if( tmp2 >= tmp1 ){
-				// tmp0 >= tmp1 >= tmp2
-				vec0 = v2, vec1 = v1, vec2 = v0;
-			}else
-			if( tmp0 >= tmp2 ){
-				// tmp0 >= tmp2 >= tmp1
-				vec0 = v0, vec1 = v2, vec2 = v1;
-			}else{
-				// tmp2 >= tmp0 >= tmp1
-				vec0 = v2, vec1 = v0, vec2 = v1;
-			}
-		}
-		// X座標を処理( vec[0].x = 1.0, vec[1].x = vec[2].x = 0.0 )
-		vc0 = [ 1.0, vec0[1]/vec0[0], vec0[2]/vec0[0], vec0[3]/vec0[0] ];
-		vc1 = [ vec1[0]-vc0[0]*vec1[0], vec1[1]-vc0[1]*vec1[0], vec1[2]-vc0[2]*vec1[0], vec1[3]-vc0[3]*vec1[0] ];
-		vc2 = [ vec2[0]-vc0[0]*vec2[0], vec2[1]-vc0[1]*vec2[0], vec2[2]-vc0[2]*vec2[0], vec2[3]-vc0[3]*vec2[0] ];
-		
-		// Y=0.0 の例外処理
-		if( vc1[1] == 0.0 ){
-			if( vc1[2] == 0.0 ){
-				nor4D[3] = 1.0;
-			}else{
-				nor4D[2] = 1.0;
-			}
-			break;
-		}
-		
-		// Y座標を処理( vec[1].y = 1.0, vec[0].y = vec[2].y = 0.0 )
-		vec1 = [ vc1[0]/vc1[1], 1.0, vc1[2]/vc1[1], vc1[2]/vc1[1] ];
-		vec0 = [ vc0[0]-vec1[0]*vc0[1], vc0[1]-vec1[1]*vc0[1], vc0[2]-vec1[2]*vc0[1], vc0[3]-vec1[3]*vc0[1] ];
-		vec2 = [ vc2[0]-vec1[0]*vc2[1], vc2[1]-vec1[1]*vc2[1], vc2[2]-vec1[2]*vc2[1], vc2[3]-vec1[3]*vc2[1] ];
-		
-		// Z=0.0 の例外処理
-		if( vec2[2] == 0.0 ){
-			nor4D[3] =1.0;
-			break;
-		}
-		
-		// Z座標を処理( vec[2].z = 1.0, vec[0].z = vec[1].z = 0.0 )
-		vc2 = [ vec2[0]/vec2[2], vec2[1]/vec2[2], 1.0, vec2[3]/vec2[2] ];
-		vc0 = [ vec0[0]-vc2[0]*vec0[2], vec0[1]-vc2[1]*vec0[2], vec0[2]-vc2[2]*vec0[2], vec0[3]-vc2[3]*vec0[2] ];
-		vc1 = [ vec1[0]-vc2[0]*vec1[2], vec1[1]-vc2[1]*vec1[2], vec1[2]-vc2[2]*vec1[2], vec1[3]-vc2[3]*vec1[2] ];
-		
-		// 方向ベクトルを得る
-		if( vc0[3] ){
-			nor4D[0] = vc0[0]/vc0[3];
-		}else{
-			nor4D[0] = 0;
-		}
-		if( vc1[3] ){
-			nor4D[1] = vc1[1]/vc1[3];
-		}else{
-			nor4D[1] = 0;
-		}
-		if( vc1[3] ){
-			nor4D[2] = vc2[2]/vc2[3];
-		}else{
-			nor4D[2] = 0;
-		}
-		nor4D[3] = 1;
-		
-		break;
-	}
-	
+	// 島田積によって法線を求める
+	nor4D =	fDWL.R4D.shimadaProd(v0,v1,v2);
+
 	// 後処理：正負の方向を定める
 	sign = fDWL.inProd4D( nor4D, [ vertice[0]-center[0], vertice[1]-center[1], vertice[2]-center[2], vertice[3]-center[3] ] );
 	if( sign < 0 ){
