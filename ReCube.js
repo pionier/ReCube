@@ -597,10 +597,10 @@ function ReCube(){
 		// 入力ボックス：変更適用
 		let isRedraw = true;
 		if( cntrls.eHPos.value !== cntrls.oldHPos ){
-			cntrls.eHPosBox.value = cntrls.eHPos.value;
+			cntrls.eHPosBox.value = cntrls.eHPos.value - 300;
 		}else
 		if( cntrls.eHPosBox.value !== cntrls.oldHPosBox ){
-			cntrls.eHPos.value = cntrls.eHPosBox.value;
+			cntrls.eHPos.value = cntrls.eHPosBox.value + 300;
 		}
 		if( cntrls.RotXY.old !== cntrls.RotXY.value ){
 			cntrls.RotXYTxt.value = cntrls.RotXY.value;
